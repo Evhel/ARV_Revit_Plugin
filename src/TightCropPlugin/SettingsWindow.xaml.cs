@@ -1,9 +1,7 @@
-﻿using System;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Forms;
 using Autodesk.Revit.UI;
+using ARV.Common;
 
 namespace AdjustCropToBreakLines
 {
@@ -12,60 +10,29 @@ namespace AdjustCropToBreakLines
         public double OffsetValueMM { get; private set; }
         public bool UseBreakLinesValue { get; private set; }
         public bool UseModelElementsValue { get; private set; }
-
-        public SettingsWindow(UIApplication uiapp, int viewsCount)
+        public SettingsWindow(UIApplication app, int viewsCount)
         {
             InitializeComponent();
-
-            // Центрируем окно относительно экрана с Revit
-            try
-            {
-                IntPtr revitHandle = uiapp.MainWindowHandle;
-                var screen = Screen.FromHandle(revitHandle);
-                var bounds = screen.WorkingArea;
-
-                this.Left = bounds.Left + (bounds.Width - this.Width) / 2;
-                this.Top = bounds.Top + (bounds.Height - this.Height) / 2;
-            }
-            catch
-            {
-                this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            }
+            new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            Title = $"Обрезка: выбрано видов {viewsCount}";
         }
-
-        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void Window_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
-            {
-                OkButton_Click(sender, e);
-            }
-            else if (e.Key == Key.Escape)
-            {
-                CancelButton_Click(sender, e);
-            }
+            if (e.Key == Key.Enter) { e.Handled = true; OkButton_Click(sender,e); }
+            else if (e.Key == Key.Escape) { e.Handled = true; CancelButton_Click(sender,e); }
         }
-
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            // Парсим значение отступа
-            if (!double.TryParse(OffsetTextBox.Text, out double offset))
-            {
-                TaskDialog.Show("Ошибка", "Введите корректное числовое значение отступа");
-                return;
-            }
-
-            OffsetValueMM = offset;
+            if (!Algorithms.TryNumber(OffsetTextBox.Text,out double offset))
+            { TaskDialog.Show("Обрезка видов","Введите корректное конечное число для отступа."); return; }
             UseBreakLinesValue = UseBreakLinesCheckBox.IsChecked == true;
             UseModelElementsValue = UseModelElementsCheckBox.IsChecked == true;
-
+            if (!UseBreakLinesValue && !UseModelElementsValue)
+            { TaskDialog.Show("Обрезка видов","Выберите хотя бы один источник границ."); return; }
+            OffsetValueMM = offset;
             DialogResult = true;
-            Close();
         }
-
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
-        }
+        private void CancelButton_Click(object sender, RoutedEventArgs e) { DialogResult = false; }
     }
 }

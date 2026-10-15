@@ -1,10 +1,15 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.Attributes;
 using System.Diagnostics;
 
 namespace BuildinOpener
 {
+    public class SiteAvailability : IExternalCommandAvailability
+    {
+        public bool IsCommandAvailable(UIApplication app, CategorySet categories) { return true; }
+    }
+
     [Transaction(TransactionMode.Manual)]
     public class OpenBuildinCommand : IExternalCommand
     {

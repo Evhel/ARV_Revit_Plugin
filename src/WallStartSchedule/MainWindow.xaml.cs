@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,16 +15,14 @@ namespace WallStartSchedule
         private List<ElementType> _filteredWallTypes;
         private List<string> _groupValues;
 
-        public Dictionary<int, string> SelectedFinishTypes { get; private set; }
-        public Dictionary<int, string> ColumnHeaderNames { get; private set; }
+        public Dictionary<int, ElementId> SelectedFinishTypes { get; private set; }
         public double AreaCoefficient { get; private set; }
 
         public MainWindow(Document doc)
         {
             InitializeComponent();
             _doc = doc;
-            SelectedFinishTypes = new Dictionary<int, string>();
-            ColumnHeaderNames = new Dictionary<int, string>();
+            SelectedFinishTypes = new Dictionary<int, ElementId>();
             _groupValues = new List<string>();
             AreaCoefficient = 0;
 
@@ -34,74 +32,7 @@ namespace WallStartSchedule
             InitializeComboBoxes();
 
             // Центрируем окно относительно Revit
-            CenterWindowOnRevit();
-        }
-
-        private void CenterWindowOnRevit()
-        {
-            try
-            {
-                // Получаем HWND активного окна Revit
-                var revitWindow = System.Diagnostics.Process.GetProcessesByName("Revit")
-                    .FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
-
-                if (revitWindow != null && revitWindow.MainWindowHandle != IntPtr.Zero)
-                {
-                    // Получаем размеры и позицию окна Revit
-                    var revitRect = GetWindowRect(revitWindow.MainWindowHandle);
-
-                    // Получаем размеры нашего окна
-                    this.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                    double windowWidth = this.Width;
-                    double windowHeight = this.Height;
-
-                    // Если размеры не заданы явно, используем стандартные
-                    if (windowWidth <= 0) windowWidth = 800;
-                    if (windowHeight <= 0) windowHeight = 600;
-
-                    // Вычисляем позицию для центрирования относительно окна Revit
-                    double left = revitRect.Left + (revitRect.Width - windowWidth) / 2;
-                    double top = revitRect.Top + (revitRect.Height - windowHeight) / 2;
-
-                    // Устанавливаем позицию окна
-                    this.Left = left;
-                    this.Top = top;
-                }
-                else
-                {
-                    // Если не нашли окно Revit, центрируем на экране по умолчанию
-                    this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                }
-            }
-            catch
-            {
-                // В случае ошибки центрируем на экране по умолчанию
-                this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            }
-        }
-
-        private struct Rect
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-            public int Width => Right - Left;
-            public int Height => Bottom - Top;
-        }
-
-        private Rect GetWindowRect(IntPtr hwnd)
-        {
-            var rect = new Rect();
-            NativeMethods.GetWindowRect(hwnd, ref rect);
-            return rect;
-        }
-
-        private static class NativeMethods
-        {
-            [System.Runtime.InteropServices.DllImport("user32.dll")]
-            [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-            public static extern bool GetWindowRect(IntPtr hWnd, ref Rect lpRect);
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
         }
 
         private void LoadWallTypes()
@@ -186,7 +117,7 @@ namespace WallStartSchedule
 
                 foreach (var wallType in _filteredWallTypes)
                 {
-                    var item = new ComboBoxItem { Content = wallType.Name, Tag = wallType };
+                    var item = new ComboBoxItem { Content = wallType.FamilyName + ": " + wallType.Name, Tag = wallType };
                     comboBox.Items.Add(item);
                 }
 
@@ -196,6 +127,7 @@ namespace WallStartSchedule
 
         private void FilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_allWallTypes == null) return;
             var selectedItem = FilterComboBox.SelectedItem as ComboBoxItem;
 
             if (selectedItem == null || selectedItem.Tag == null)
@@ -256,7 +188,7 @@ namespace WallStartSchedule
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             // Валидация коэффициента
-            if (!double.TryParse(CoefficientTextBox.Text, out double coefficient))
+            if (!ARV.Common.Algorithms.TryNumber(CoefficientTextBox.Text, out double coefficient))
             {
                 MessageBox.Show("Введите число от 0 до 100 для коэффициента запаса!", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
@@ -276,7 +208,6 @@ namespace WallStartSchedule
             int activeColumns = 0;
 
             SelectedFinishTypes.Clear();
-            ColumnHeaderNames.Clear();
 
             for (int i = 0; i < comboBoxes.Length; i++)
             {
@@ -287,8 +218,7 @@ namespace WallStartSchedule
                     var wallType = selectedItem.Tag as ElementType;
                     if (wallType != null)
                     {
-                        SelectedFinishTypes[i + 1] = wallType.Name;
-                        ColumnHeaderNames[i + 1] = wallType.Name;
+                        SelectedFinishTypes[i + 1] = wallType.Id;
                         activeColumns++;
                     }
                 }
@@ -301,6 +231,8 @@ namespace WallStartSchedule
                 return;
             }
 
+            if (SelectedFinishTypes.Values.Select(id => id.IntegerValue).Distinct().Count() != SelectedFinishTypes.Count)
+            { MessageBox.Show("Один тип стены выбран в нескольких колонках."); return; }
             this.DialogResult = true;
             this.Close();
         }

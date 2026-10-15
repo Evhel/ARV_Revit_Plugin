@@ -1,129 +1,70 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Linq;
+using System.Collections.Generic;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using ARV.Common;
 
 namespace WorksetViewsPlugin
 {
     [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
     public class WorksetViewsCommand : IExternalCommand
     {
-        public Result Execute(
-            ExternalCommandData commandData,
-            ref string message,
-            ElementSet elements)
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            UIApplication uiapp = commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
-
             try
             {
-                // Получаем все пользовательские рабочие наборы
-                FilteredWorksetCollector collector = new FilteredWorksetCollector(doc);
-                var userWorksets = collector.ToWorksets()
-                    .Where(ws => ws.Kind == WorksetKind.UserWorkset)
-                    .ToList();
-
-                if (userWorksets.Count == 0)
+                if (!RevitSupport.TryProject(data, out UIDocument uidoc, out Document doc)) return Result.Cancelled;
+                if (!doc.IsWorkshared)
                 {
-                    TaskDialog.Show("Внимание", "В проекте нет пользовательских рабочих наборов.");
-                    return Result.Succeeded;
+                    TaskDialog.Show("Рабочие наборы", "В проекте не включена совместная работа.");
+                    return Result.Cancelled;
                 }
-
-                using (Transaction trans = new Transaction(doc, "Создание 3D видов по рабочим наборам"))
+                var worksets = new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset).ToWorksets()
+                    .OrderBy(w => w.Name, Algorithms.NameComparer).ToList();
+                if (worksets.Count == 0) return Result.Cancelled;
+                var type = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
+                    .FirstOrDefault(t => t.ViewFamily == ViewFamily.ThreeDimensional);
+                if (type == null) throw new InvalidOperationException("В проекте нет типа 3D-вида.");
+                var names = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
+                var errors = new List<string>();
+                int created = 0;
+                using (var transaction = new Transaction(doc, "3D-виды по рабочим наборам"))
                 {
-                    trans.Start();
-
-                    // Получаем тип семейства для 3D вида
-                    ViewFamilyType viewFamilyType = new FilteredElementCollector(doc)
-                        .OfClass(typeof(ViewFamilyType))
-                        .Cast<ViewFamilyType>()
-                        .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.ThreeDimensional);
-
-                    if (viewFamilyType == null)
+                    transaction.Start();
+                    foreach (var workset in worksets)
                     {
-                        TaskDialog.Show("Ошибка", "Не найден тип семейства для 3D вида.");
-                        return Result.Failed;
+                        using (var item = new SubTransaction(doc))
+                        {
+                            item.Start();
+                            try
+                            {
+                                var view = View3D.CreateIsometric(doc, type.Id);
+                                view.ViewTemplateId = ElementId.InvalidElementId;
+                                view.Name = Algorithms.UniqueName("РН_" + workset.Name, names);
+                                foreach (Category category in doc.Settings.Categories)
+                                    if (view.CanCategoryBeHidden(category.Id)) view.SetCategoryHidden(category.Id, false);
+                                // Служебные наборы оставляем как есть; скрываем только остальные пользовательские.
+                                foreach (var other in worksets)
+                                    view.SetWorksetVisibility(other.Id, other.Id.IntegerValue == workset.Id.IntegerValue ? WorksetVisibility.Visible : WorksetVisibility.Hidden);
+                                if (item.Commit() != TransactionStatus.Committed) throw new InvalidOperationException("Изменение не подтверждено.");
+                                created++;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (item.GetStatus() == TransactionStatus.Started) item.RollBack();
+                                errors.Add(workset.Name + ": " + ex.Message);
+                            }
+                        }
                     }
-
-                    foreach (Workset ws in userWorksets)
-                    {
-                        // Создаём новый 3D вид с префиксом "РН_"
-                        View3D view3D = View3D.CreateIsometric(doc, viewFamilyType.Id);
-                        view3D.Name = $"РН_{ws.Name}";
-
-                        // Включаем все категории модели
-                        EnableAllCategories(doc, view3D);
-
-                        // Управляем видимостью через вкладку "Рабочие наборы" в V/G
-                        SetWorksetVisibilityInVG(view3D, ws.Id, doc);
-                    }
-
-                    trans.Commit();
+                    if (created == 0) { transaction.RollBack(); throw new InvalidOperationException(string.Join("\n", errors)); }
+                    RevitSupport.Commit(transaction);
                 }
-
-                TaskDialog.Show("Готово", $"Создано {userWorksets.Count} 3D видов.\n\nПрефикс 'РН_' добавлен к названиям видов.\nНа каждом виде настроена вкладка 'Рабочие наборы' в V/G.");
+                TaskDialog.Show("Рабочие наборы", $"Создано: {created}. Пропущено: {errors.Count}.\n" + string.Join("\n", errors));
                 return Result.Succeeded;
             }
-            catch (Exception ex)
-            {
-                message = ex.Message;
-                TaskDialog.Show("Ошибка", ex.Message);
-                return Result.Failed;
-            }
-        }
-
-        private void EnableAllCategories(Document doc, View3D view)
-        {
-            // Включаем все категории модели
-            Categories categories = doc.Settings.Categories;
-
-            foreach (Category category in categories)
-            {
-                try
-                {
-                    view.SetCategoryHidden(category.Id, false);
-                }
-                catch
-                {
-                    continue;
-                }
-            }
-        }
-
-        private void SetWorksetVisibilityInVG(View3D view, WorksetId worksetIdToShow, Document doc)
-        {
-            // Получаем все рабочие наборы
-            FilteredWorksetCollector collector = new FilteredWorksetCollector(doc);
-            ICollection<Workset> allWorksets = collector.ToWorksets();
-
-            // Настраиваем видимость каждого рабочего набора
-            foreach (Workset ws in allWorksets)
-            {
-                // Работаем только с пользовательскими рабочими наборами
-                if (ws.Kind == WorksetKind.UserWorkset)
-                {
-                    if (ws.Id.IntegerValue == worksetIdToShow.IntegerValue)
-                    {
-                        // Показываем выбранный рабочий набор
-                        view.SetWorksetVisibility(ws.Id, WorksetVisibility.Visible);
-                    }
-                    else
-                    {
-                        // Скрываем все остальные рабочие наборы
-                        view.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden);
-                    }
-                }
-                else
-                {
-                    // Служебные рабочие наборы тоже скрываем
-                    view.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden);
-                }
-            }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
         }
     }
 }

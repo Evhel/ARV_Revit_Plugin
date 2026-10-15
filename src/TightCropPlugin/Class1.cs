@@ -1,319 +1,130 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using ARV.Common;
 
 namespace AdjustCropToBreakLines
 {
     [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
     public class AdjustCropToBreakLinesCommand : IExternalCommand
     {
-        public Result Execute(
-            ExternalCommandData commandData,
-            ref string message,
-            ElementSet elements)
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            UIApplication uiapp = commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
-
-            // Получаем выбранные элементы
-            var selectedIds = uidoc.Selection.GetElementIds();
-
-            List<View> viewsToProcess = new List<View>();
-
-            foreach (ElementId id in selectedIds)
-            {
-                Element element = doc.GetElement(id);
-
-                if (element is Viewport viewport)
-                {
-                    View view = doc.GetElement(viewport.ViewId) as View;
-                    if (view != null && !view.IsTemplate)
-                        viewsToProcess.Add(view);
-                }
-                else if (element is View view && !view.IsTemplate)
-                {
-                    viewsToProcess.Add(view);
-                }
-            }
-
-            if (viewsToProcess.Count == 0)
-            {
-                TaskDialog.Show("Ошибка",
-                    "Пожалуйста, выберите:\n" +
-                    "- Видовые экраны на листе\n" +
-                    "- Или сами виды в Project Browser");
-                return Result.Failed;
-            }
-
-            // Показываем WPF окно для ввода параметров
-            var settingsWindow = new SettingsWindow(uiapp, viewsToProcess.Count);
-            bool? result = settingsWindow.ShowDialog();
-
-            if (result != true)
-                return Result.Cancelled;
-
-            // ИСПРАВЛЕНО: используем новые имена свойств
-            double offsetMM = settingsWindow.OffsetValueMM;
-            bool useBreakLines = settingsWindow.UseBreakLinesValue;
-            bool useModelElements = settingsWindow.UseModelElementsValue;
-
-            int successCount = 0;
-            int failCount = 0;
-            string failList = "";
-
-            using (Transaction trans = new Transaction(doc, "Подогнать контур обрезки"))
-            {
-                trans.Start();
-
-                foreach (View view in viewsToProcess)
-                {
-                    if (AdjustCropBox(view, offsetMM, useBreakLines, useModelElements, out string errorMsg))
-                    {
-                        successCount++;
-                    }
-                    else
-                    {
-                        failCount++;
-                        failList += $"\n- {view.Name}: {errorMsg}";
-                    }
-                }
-
-                trans.Commit();
-            }
-
-            TaskDialog.Show("Результат",
-                $"Обработано видов: {viewsToProcess.Count}\n" +
-                $"Успешно: {successCount}\n" +
-                $"Не удалось: {failCount}\n" +
-                $"{failList}");
-
-            return Result.Succeeded;
-        }
-
-        private bool AdjustCropBox(View view, double offsetMM, bool useBreakLines, bool useModelElements, out string errorMessage)
-        {
-            errorMessage = "";
-            Document doc = view.Document;
-
             try
             {
-                if (!view.CropBoxActive)
-                    view.CropBoxActive = true;
-
-                BoundingBoxXYZ currentCropBox = view.CropBox;
-                Transform transform = currentCropBox.Transform;
-
-                List<BoundingBoxXYZ> breakLineBoxes = new List<BoundingBoxXYZ>();
-                List<BoundingBoxXYZ> modelBoxes = new List<BoundingBoxXYZ>();
-
-                if (useBreakLines)
-                    breakLineBoxes = GetBreakLineBoundingBoxes(view);
-
-                if (useModelElements)
-                    modelBoxes = GetModelElementsBoundingBoxes(view);
-
-                if (modelBoxes.Count == 0 && breakLineBoxes.Count == 0)
+                if (!RevitSupport.TryProject(data, out UIDocument uidoc, out Document doc)) return Result.Cancelled;
+                var views = uidoc.Selection.GetElementIds().Select(doc.GetElement).Select(e => e is Viewport vp ? doc.GetElement(vp.ViewId) : e)
+                    .OfType<View>().Where(v => !v.IsTemplate).GroupBy(v => v.Id.IntegerValue).Select(g => g.First()).ToList();
+                if (views.Count == 0)
                 {
-                    errorMessage = "Не найдены элементы для обрезки";
-                    return false;
+                    TaskDialog.Show("Обрезка видов", "Выберите виды в диспетчере проекта или видовые экраны на листе.");
+                    return Result.Cancelled;
                 }
-
-                // Собираем все точки из bounding box'ов
-                List<XYZ> allPoints = new List<XYZ>();
-
-                foreach (var box in modelBoxes)
+                var window = new SettingsWindow(data.Application, views.Count);
+                if (window.ShowDialog() != true) return Result.Cancelled;
+                int changed = 0;
+                var errors = new List<string>();
+                using (var transaction = new Transaction(doc, "Обрезка видов"))
                 {
-                    AddBoundingBoxCorners(box, transform, allPoints);
-                }
-
-                foreach (var box in breakLineBoxes)
-                {
-                    AddBoundingBoxCorners(box, transform, allPoints);
-                }
-
-                if (allPoints.Count == 0)
-                {
-                    errorMessage = "Не удалось получить геометрию элементов";
-                    return false;
-                }
-
-                // Находим границы всех элементов
-                double minX = allPoints.Min(p => p.X);
-                double maxX = allPoints.Max(p => p.X);
-                double minY = allPoints.Min(p => p.Y);
-                double maxY = allPoints.Max(p => p.Y);
-                double minZ = allPoints.Min(p => p.Z);
-                double maxZ = allPoints.Max(p => p.Z);
-
-                double finalMinX = minX;
-                double finalMaxX = maxX;
-                double finalMinY = minY;
-                double finalMaxY = maxY;
-                double finalMinZ = minZ;
-                double finalMaxZ = maxZ;
-
-                // Если есть линии обрыва, используем их для корректировки границ
-                if (useBreakLines && breakLineBoxes.Count > 0)
-                {
-                    // Находим границы линий обрыва
-                    List<XYZ> breakPoints = new List<XYZ>();
-                    foreach (var box in breakLineBoxes)
+                    transaction.Start();
+                    foreach (var view in views)
                     {
-                        AddBoundingBoxCorners(box, transform, breakPoints);
+                        using (var item = new SubTransaction(doc))
+                        {
+                            item.Start();
+                            try
+                            {
+                                AdjustCropBox(view, window.OffsetValueMM, window.UseBreakLinesValue, window.UseModelElementsValue);
+                                doc.Regenerate();
+                                if (item.Commit() != TransactionStatus.Committed) throw new InvalidOperationException("Изменение не подтверждено.");
+                                changed++;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (item.GetStatus() == TransactionStatus.Started) item.RollBack();
+                                errors.Add(view.Name + ": " + ex.Message);
+                            }
+                        }
                     }
+                    if (changed == 0) { transaction.RollBack(); TaskDialog.Show("Обрезка видов", string.Join("\n", errors)); return Result.Cancelled; }
+                    RevitSupport.Commit(transaction);
+                }
+                TaskDialog.Show("Обрезка видов", $"Обработано: {changed}. Пропущено: {errors.Count}.\n" + string.Join("\n", errors));
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
+        }
 
-                    if (breakPoints.Count > 0)
+        public static void AdjustCropBox(View view, double offsetMM, bool useBreakLines, bool useModelElements)
+        {
+            if (!(view is ViewPlan) && !(view is ViewSection))
+                throw new InvalidOperationException("Поддерживаются планы, разрезы, фасады и узлы с рамкой обрезки.");
+            var original = view.CropBox;
+            if (original == null) throw new InvalidOperationException("У вида нет рамки обрезки.");
+            using (var manager = view.GetCropRegionShapeManager())
+                if (manager.ShapeSet || manager.NumberOfSplitRegions > 1)
+                    throw new InvalidOperationException("Непрямоугольная или разделённая обрезка сохранена без изменений.");
+            var doc = view.Document;
+            var modelBoxes = new List<BoundingBoxXYZ>();
+            var breakBoxes = new List<BoundingBoxXYZ>();
+            if (useModelElements)
+            {
+                var categories = new List<BuiltInCategory>
+                {
+                    BuiltInCategory.OST_Walls, BuiltInCategory.OST_StructuralColumns,
+                    BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_Floors,
+                    BuiltInCategory.OST_Roofs, BuiltInCategory.OST_StructuralFoundation,
+                    BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_Columns,
+                    BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows
+                };
+                modelBoxes = new FilteredElementCollector(doc, view.Id).WherePasses(new ElementMulticategoryFilter(categories))
+                    .WhereElementIsNotElementType().Select(e => e.get_BoundingBox(view)).Where(b => b != null).ToList();
+            }
+            if (useBreakLines)
+            {
+                breakBoxes = new FilteredElementCollector(doc, view.Id).OfClass(typeof(FamilyInstance))
+                    .OfCategory(BuiltInCategory.OST_DetailComponents).Cast<FamilyInstance>()
+                    .Where(e => IsBreakLine(e.Symbol.FamilyName + " " + e.Name))
+                    .Select(e => e.get_BoundingBox(view)).Where(b => b != null).ToList();
+            }
+            // При наличии распознанных линий обрыва именно они задают границы.
+            var boxes = breakBoxes.Count > 0 ? breakBoxes : modelBoxes;
+            var points = boxes.SelectMany(b => CornersInView(b, original.Transform)).ToList();
+            if (points.Count == 0) throw new InvalidOperationException("В текущей видимой области не найдены выбранные источники границ.");
+            double offset = offsetMM / 304.8;
+            double minX = points.Min(p => p.X) - offset, maxX = points.Max(p => p.X) + offset;
+            double minY = points.Min(p => p.Y) - offset, maxY = points.Max(p => p.Y) + offset;
+            if (maxX - minX < 1e-6 || maxY - minY < 1e-6) throw new InvalidOperationException("Отступ создаёт пустую рамку обрезки.");
+            // Z, глубину разреза и ориентацию не меняем.
+            var box = new BoundingBoxXYZ
+            {
+                Enabled = true,
+                Transform = original.Transform,
+                Min = new XYZ(minX, minY, original.Min.Z),
+                Max = new XYZ(maxX, maxY, original.Max.Z)
+            };
+            view.CropBoxActive = true;
+            view.CropBox = box;
+        }
+
+        private static bool IsBreakLine(string name)
+        {
+            return new[] { "обрыв", "разрыв", "break" }.Any(s => name.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static IEnumerable<XYZ> CornersInView(BoundingBoxXYZ box, Transform viewTransform)
+        {
+            var inverse = viewTransform.Inverse;
+            foreach (double x in new[] { box.Min.X, box.Max.X })
+                foreach (double y in new[] { box.Min.Y, box.Max.Y })
+                    foreach (double z in new[] { box.Min.Z, box.Max.Z })
                     {
-                        double breakMinX = breakPoints.Min(p => p.X);
-                        double breakMaxX = breakPoints.Max(p => p.X);
-                        double breakMinY = breakPoints.Min(p => p.Y);
-                        double breakMaxY = breakPoints.Max(p => p.Y);
-
-                        // Используем линии обрыва для всех сторон
-                        finalMinX = breakMinX;
-                        finalMaxX = breakMaxX;
-                        finalMinY = breakMinY;
-                        finalMaxY = breakMaxY;
+                        var point = inverse.OfPoint(box.Transform.OfPoint(new XYZ(x, y, z)));
+                        if (!double.IsNaN(point.X) && !double.IsInfinity(point.X) && !double.IsNaN(point.Y) && !double.IsInfinity(point.Y)) yield return point;
                     }
-                }
-
-                // Добавляем отступ
-                double offsetFeet = offsetMM / 304.8;
-                finalMinX -= offsetFeet;
-                finalMaxX += offsetFeet;
-                finalMinY -= offsetFeet;
-                finalMaxY += offsetFeet;
-                finalMinZ -= offsetFeet;
-                finalMaxZ += offsetFeet;
-
-                // Создаем новый bounding box
-                BoundingBoxXYZ newBbox = new BoundingBoxXYZ();
-                newBbox.Enabled = true;
-                newBbox.Transform = transform;
-                newBbox.Min = new XYZ(finalMinX, finalMinY, finalMinZ);
-                newBbox.Max = new XYZ(finalMaxX, finalMaxY, finalMaxZ);
-
-                view.CropBox = newBbox;
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                errorMessage = ex.Message;
-                return false;
-            }
-        }
-
-        private void AddBoundingBoxCorners(BoundingBoxXYZ box, Transform transform, List<XYZ> points)
-        {
-            if (box == null) return;
-
-            XYZ min = box.Min;
-            XYZ max = box.Max;
-
-            if (min.X < -10000 || min.Y < -10000 || max.X > 100000 || max.Y > 100000) return;
-
-            XYZ[] corners = new XYZ[]
-            {
-                new XYZ(min.X, min.Y, min.Z),
-                new XYZ(min.X, min.Y, max.Z),
-                new XYZ(min.X, max.Y, min.Z),
-                new XYZ(min.X, max.Y, max.Z),
-                new XYZ(max.X, min.Y, min.Z),
-                new XYZ(max.X, min.Y, max.Z),
-                new XYZ(max.X, max.Y, min.Z),
-                new XYZ(max.X, max.Y, max.Z)
-            };
-
-            foreach (XYZ corner in corners)
-            {
-                try
-                {
-                    points.Add(transform.Inverse.OfPoint(corner));
-                }
-                catch { }
-            }
-        }
-
-        private List<BoundingBoxXYZ> GetBreakLineBoundingBoxes(View view)
-        {
-            List<BoundingBoxXYZ> boxes = new List<BoundingBoxXYZ>();
-            Document doc = view.Document;
-
-            // Собираем все семейства категории "Элемент узлов"
-            FilteredElementCollector collector = new FilteredElementCollector(doc, view.Id);
-            var detailComponents = collector
-                .OfClass(typeof(FamilyInstance))
-                .OfCategory(BuiltInCategory.OST_DetailComponents)
-                .WhereElementIsNotElementType()
-                .Cast<FamilyInstance>()
-                .ToList();
-
-            foreach (FamilyInstance component in detailComponents)
-            {
-                // Получаем bounding box элемента целиком
-                BoundingBoxXYZ bbox = component.get_BoundingBox(view);
-                if (bbox != null)
-                {
-                    boxes.Add(bbox);
-                }
-            }
-
-            return boxes;
-        }
-
-        private List<BoundingBoxXYZ> GetModelElementsBoundingBoxes(View view)
-        {
-            List<BoundingBoxXYZ> boxes = new List<BoundingBoxXYZ>();
-            Document doc = view.Document;
-
-            // Категории элементов модели
-            List<BuiltInCategory> modelCategories = new List<BuiltInCategory>
-            {
-                BuiltInCategory.OST_Walls,
-                BuiltInCategory.OST_StructuralColumns,
-                BuiltInCategory.OST_StructuralFraming,
-                BuiltInCategory.OST_Floors,
-                BuiltInCategory.OST_Roofs,
-                BuiltInCategory.OST_StructuralFoundation,
-                BuiltInCategory.OST_GenericModel,
-                BuiltInCategory.OST_Columns
-            };
-
-            FilteredElementCollector collector = new FilteredElementCollector(doc, view.Id);
-            List<Element> visibleElements = new List<Element>();
-
-            foreach (var category in modelCategories)
-            {
-                var elements = collector
-                    .OfCategory(category)
-                    .WhereElementIsNotElementType()
-                    .ToList();
-                visibleElements.AddRange(elements);
-            }
-
-            // Добавляем стены отдельно
-            var walls = collector
-                .OfClass(typeof(Wall))
-                .WhereElementIsNotElementType()
-                .ToList();
-            visibleElements.AddRange(walls);
-
-            foreach (Element element in visibleElements)
-            {
-                BoundingBoxXYZ bbox = element.get_BoundingBox(view);
-                if (bbox != null)
-                {
-                    boxes.Add(bbox);
-                }
-            }
-
-            return boxes;
         }
     }
 }

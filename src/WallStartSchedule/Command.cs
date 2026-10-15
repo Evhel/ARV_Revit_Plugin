@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.Attributes;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
@@ -14,10 +14,13 @@ namespace WallStartSchedule
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument.Document;
+                if (!ARV.Common.RevitSupport.TryProject(commandData, out UIDocument uidoc, out Document doc)) return Result.Cancelled;
 
                 var mainWindow = new MainWindow(doc);
+                new System.Windows.Interop.WindowInteropHelper(mainWindow) { Owner = commandData.Application.MainWindowHandle };
+                mainWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                 bool? dialogResult = mainWindow.ShowDialog();
+                if (dialogResult != true) return Result.Cancelled;
 
                 if (dialogResult == true)
                 {
@@ -26,7 +29,6 @@ namespace WallStartSchedule
                     var calculator = new WallStartCalculator(doc);
                     var result = calculator.CalculateAndWrite(
                         mainWindow.SelectedFinishTypes,
-                        mainWindow.ColumnHeaderNames,
                         mainWindow.AreaCoefficient
                     );
 
@@ -50,8 +52,8 @@ namespace WallStartSchedule
                     }
                     else
                     {
-                        MessageBox.Show($"❌ Ошибка: {result.ErrorMessage}", "Ошибка",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        message = result.ErrorMessage;
+                        return Result.Failed;
                     }
                 }
 

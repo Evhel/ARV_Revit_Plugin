@@ -1,314 +1,93 @@
-﻿using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using ARV.Common;
 
 namespace WallStartSchedule
 {
     public class WallStartCalculator
     {
-        private Document _doc;
+        private readonly Document doc;
+        public WallStartCalculator(Document document) { doc = document; }
+        private static string MaterialParameter(int column) => $"ВО_Стены_Черновая_{column}_Материал";
+        private static string AreaParameter(int column) => $"ВО_Стены_Черновая_{column}_Площадь";
+        private const string ListParameter = "ВО_СписокНомеровСтены_Черновая";
 
-        private readonly string[] _roomMaterialParamNames = new string[]
-        {
-            "ВО_Стены_Черновая_1_Материал",
-            "ВО_Стены_Черновая_2_Материал",
-            "ВО_Стены_Черновая_3_Материал",
-            "ВО_Стены_Черновая_4_Материал",
-            "ВО_Стены_Черновая_5_Материал"
-        };
-
-        private readonly string[] _roomAreaParamNames = new string[]
-        {
-            "ВО_Стены_Черновая_1_Площадь",
-            "ВО_Стены_Черновая_2_Площадь",
-            "ВО_Стены_Черновая_3_Площадь",
-            "ВО_Стены_Черновая_4_Площадь",
-            "ВО_Стены_Черновая_5_Площадь"
-        };
-
-        private readonly string _roomListParamName = "ВО_СписокНомеровСтены_Черновая";
-
-        public WallStartCalculator(Document doc)
-        {
-            _doc = doc;
-        }
-
-        public CalculateResult CalculateAndWrite(Dictionary<int, string> selectedTypes, Dictionary<int, string> columnNames, double areaCoefficient)
+        public CalculateResult CalculateAndWrite(Dictionary<int, ElementId> selectedTypes, double areaCoefficient)
         {
             try
             {
-                using (Transaction trans = new Transaction(_doc, "Запись черновой отделки стен"))
+                if (selectedTypes.Count == 0 || selectedTypes.Keys.Any(k => k < 1 || k > 5)) throw new InvalidOperationException("Выберите типы отделки для колонок 1–5.");
+                if (!Algorithms.TryNumber(areaCoefficient.ToString(System.Globalization.CultureInfo.InvariantCulture), out double coefficient) || coefficient < 0 || coefficient > 100)
+                    throw new InvalidOperationException("Коэффициент должен быть от 0 до 100.");
+                if (selectedTypes.Values.Select(id => id.IntegerValue).Distinct().Count() != selectedTypes.Count)
+                    throw new InvalidOperationException("Один тип стены нельзя выбрать для нескольких колонок.");
+                var rooms = new FilteredElementCollector(doc).OfClass(typeof(SpatialElement)).OfType<Room>()
+                    .Where(r => r.Area > 0 && !string.IsNullOrWhiteSpace(r.Number)).ToList();
+                if (rooms.Count == 0) throw new InvalidOperationException("Нет размещённых помещений с площадью и номером.");
+                var duplicates = rooms.GroupBy(r => r.Number).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (duplicates.Count > 0) throw new InvalidOperationException("Неоднозначные номера помещений: " + string.Join(", ", duplicates) + ". ADSK_Группирование не позволяет однозначно сопоставить стены.");
+                foreach (var room in rooms)
                 {
-                    trans.Start();
-
-                    FilteredElementCollector roomCollector = new FilteredElementCollector(_doc);
-                    roomCollector.OfCategory(BuiltInCategory.OST_Rooms);
-                    var rooms = roomCollector.WhereElementIsNotElementType().ToList();
-                    int roomsCount = rooms.Count;
-
-                    if (roomsCount == 0)
+                    RevitSupport.Require(room, ListParameter, StorageType.String);
+                    for (int column = 1; column <= 5; column++)
                     {
-                        trans.RollBack();
-                        return new CalculateResult { Success = false, ErrorMessage = "В проекте не найдено помещений" };
+                        RevitSupport.Require(room, MaterialParameter(column), StorageType.String);
+                        RevitSupport.Require(room, AreaParameter(column), StorageType.Double);
                     }
-
-                    FilteredElementCollector wallCollector = new FilteredElementCollector(_doc);
-                    wallCollector.OfCategory(BuiltInCategory.OST_Walls);
-                    wallCollector.WhereElementIsNotElementType();
-                    var allWalls = wallCollector.ToList();
-                    int totalWallsCount = allWalls.Count;
-
-                    var selectedTypeNames = selectedTypes.Values.ToHashSet();
-                    var filteredWalls = allWalls.Where(w =>
-                    {
-                        ElementType wallType = _doc.GetElement(w.GetTypeId()) as ElementType;
-                        return wallType != null && selectedTypeNames.Contains(wallType.Name);
-                    }).ToList();
-                    int filteredWallsCount = filteredWalls.Count;
-
-                    // Вычисляем множитель из коэффициента (0% = 1.0, 100% = 2.0)
-                    double areaMultiplier = 1.0 + (areaCoefficient / 100.0);
-
-                    Dictionary<string, List<string>> roomGroups = new Dictionary<string, List<string>>();
-
+                }
+                var walls = new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>().ToList();
+                var selectedIds = new HashSet<int>(selectedTypes.Values.Select(id => id.IntegerValue));
+                var filtered = walls.Where(w => selectedIds.Contains(w.GetTypeId().IntegerValue)).ToList();
+                var byRoom = filtered.ToLookup(w => RevitSupport.Text(w.LookupParameter("ADSK_Группирование")));
+                var groupRooms = new Dictionary<string, List<Room>>();
+                using (var transaction = new Transaction(doc, "Черновая отделка стен"))
+                {
+                    transaction.Start();
                     foreach (var room in rooms)
                     {
-                        string roomNumber = GetParameterValue(room, "Номер");
-
-                        if (string.IsNullOrEmpty(roomNumber))
-                            continue;
-
-                        for (int i = 0; i < _roomMaterialParamNames.Length; i++)
+                        for (int column = 1; column <= 5; column++)
                         {
-                            SetParameterValue(room, _roomMaterialParamNames[i], "");
-                            SetParameterValue(room, _roomAreaParamNames[i], 0);
+                            RevitSupport.SetText(room, MaterialParameter(column), "");
+                            RevitSupport.SetNumber(room, AreaParameter(column), 0);
                         }
-                        SetParameterValue(room, _roomListParamName, "");
-
-                        var roomWalls = filteredWalls.Where(w =>
+                        var present = new List<int>();
+                        foreach (var selected in selectedTypes.OrderBy(p => p.Key))
                         {
-                            string wallGroup = GetParameterValue(w, "ADSK_Группирование");
-                            return wallGroup == roomNumber;
-                        }).ToList();
-
-                        List<int> presentColumns = new List<int>();
-
-                        foreach (var kvp in selectedTypes)
-                        {
-                            int columnIndex = kvp.Key;
-                            string wallTypeName = kvp.Value;
-
-                            if (columnIndex < 1 || columnIndex > 5)
-                                continue;
-
-                            var matchingWalls = roomWalls.Where(w =>
+                            var matches = byRoom[room.Number].Where(w => w.GetTypeId().IntegerValue == selected.Value.IntegerValue).ToList();
+                            if (matches.Count == 0) continue;
+                            present.Add(selected.Key);
+                            var type = doc.GetElement(selected.Value);
+                            string description = RevitSupport.Text(type.LookupParameter("ВО_Описание"));
+                            if (string.IsNullOrWhiteSpace(description)) throw new InvalidOperationException("У типа «" + type.Name + "» не заполнен ВО_Описание.");
+                            double area = 0;
+                            foreach (var wall in matches)
                             {
-                                ElementType wallType = _doc.GetElement(w.GetTypeId()) as ElementType;
-                                return wallType != null && wallType.Name == wallTypeName;
-                            }).ToList();
-
-                            if (matchingWalls.Count > 0)
-                            {
-                                presentColumns.Add(columnIndex);
-
-                                ElementType wallType = _doc.GetElement(matchingWalls[0].GetTypeId()) as ElementType;
-
-                                if (wallType != null)
-                                {
-                                    string description = GetElementTypeParameterValue(wallType, "ВО_Описание");
-
-                                    string roomMaterialParamName = _roomMaterialParamNames[columnIndex - 1];
-                                    SetParameterValue(room, roomMaterialParamName, description ?? "");
-
-                                    double totalArea = 0;
-                                    foreach (Wall wall in matchingWalls)
-                                    {
-                                        totalArea += CalculateWallArea(wall);
-                                    }
-
-                                    // Применяем коэффициент запаса
-                                    totalArea = totalArea * areaMultiplier;
-
-                                    string roomAreaParamName = _roomAreaParamNames[columnIndex - 1];
-                                    SetParameterValue(room, roomAreaParamName, totalArea);
-                                }
+                                var parameter = wall.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                                if (parameter == null || parameter.StorageType != StorageType.Double) throw new InvalidOperationException("Не найдена площадь стены " + wall.Id);
+                                area += parameter.AsDouble();
                             }
+                            RevitSupport.SetText(room, MaterialParameter(selected.Key), description);
+                            RevitSupport.SetNumber(room, AreaParameter(selected.Key), area * (1 + coefficient / 100.0));
                         }
-
-                        string groupKey = presentColumns.Count > 0
-                            ? string.Join(",", presentColumns.OrderBy(c => c))
-                            : "EMPTY";
-
-                        if (!roomGroups.ContainsKey(groupKey))
-                        {
-                            roomGroups[groupKey] = new List<string>();
-                        }
-                        roomGroups[groupKey].Add(roomNumber);
+                        string key = string.Join(",", present);
+                        if (!groupRooms.ContainsKey(key)) groupRooms[key] = new List<Room>();
+                        groupRooms[key].Add(room);
                     }
-
-                    foreach (var group in roomGroups)
+                    foreach (var group in groupRooms)
                     {
-                        string groupKey = group.Key;
-                        List<string> roomNumbers = group.Value;
-
-                        string roomListString = string.Join(", ", roomNumbers.OrderBy(n => n));
-
-                        foreach (var room in rooms)
-                        {
-                            string roomNumber = GetParameterValue(room, "Номер");
-
-                            if (string.IsNullOrEmpty(roomNumber))
-                                continue;
-
-                            var roomWalls = filteredWalls.Where(w =>
-                            {
-                                string wallGroup = GetParameterValue(w, "ADSK_Группирование");
-                                return wallGroup == roomNumber;
-                            }).ToList();
-
-                            List<int> presentColumns = new List<int>();
-
-                            foreach (var kvp in selectedTypes)
-                            {
-                                int columnIndex = kvp.Key;
-                                string wallTypeName = kvp.Value;
-
-                                if (columnIndex < 1 || columnIndex > 5)
-                                    continue;
-
-                                var matchingWalls = roomWalls.Where(w =>
-                                {
-                                    ElementType wallType = _doc.GetElement(w.GetTypeId()) as ElementType;
-                                    return wallType != null && wallType.Name == wallTypeName;
-                                }).ToList();
-
-                                if (matchingWalls.Count > 0)
-                                {
-                                    presentColumns.Add(columnIndex);
-                                }
-                            }
-
-                            string roomGroupKey = presentColumns.Count > 0
-                                ? string.Join(",", presentColumns.OrderBy(c => c))
-                                : "EMPTY";
-
-                            if (roomGroupKey == groupKey)
-                            {
-                                if (groupKey == "EMPTY")
-                                {
-                                    SetParameterValue(room, _roomListParamName, "");
-                                }
-                                else
-                                {
-                                    SetParameterValue(room, _roomListParamName, roomListString);
-                                }
-                            }
-                        }
+                        string numbers = group.Key.Length == 0 ? "" : string.Join(", ", group.Value.Select(r => r.Number).OrderBy(n => n, Algorithms.NameComparer));
+                        foreach (var room in group.Value) RevitSupport.SetText(room, ListParameter, numbers);
                     }
-
-                    trans.Commit();
-
-                    return new CalculateResult
-                    {
-                        Success = true,
-                        RoomsCount = roomsCount,
-                        TotalWallsCount = totalWallsCount,
-                        FilteredWallsCount = filteredWallsCount
-                    };
+                    RevitSupport.Commit(transaction);
                 }
+                return new CalculateResult { Success = true, RoomsCount = rooms.Count, TotalWallsCount = walls.Count, FilteredWallsCount = filtered.Count };
             }
-            catch (Exception ex)
-            {
-                return new CalculateResult
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message
-                };
-            }
-        }
-
-        private double CalculateWallArea(Wall wall)
-        {
-            try
-            {
-                Parameter areaParam = wall.LookupParameter("Площадь");
-
-                if (areaParam != null && areaParam.HasValue)
-                {
-                    return areaParam.AsDouble();
-                }
-
-                areaParam = wall.LookupParameter("Area");
-
-                if (areaParam != null && areaParam.HasValue)
-                {
-                    return areaParam.AsDouble();
-                }
-
-                return 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        private string GetParameterValue(Element element, string paramName)
-        {
-            try
-            {
-                Parameter param = element.LookupParameter(paramName);
-                if (param != null && param.HasValue)
-                {
-                    return param.AsString();
-                }
-            }
-            catch { }
-            return "";
-        }
-
-        private void SetParameterValue(Element element, string paramName, string value)
-        {
-            try
-            {
-                Parameter param = element.LookupParameter(paramName);
-                if (param != null && !param.IsReadOnly)
-                {
-                    param.Set(value);
-                }
-            }
-            catch { }
-        }
-
-        private void SetParameterValue(Element element, string paramName, double value)
-        {
-            try
-            {
-                Parameter param = element.LookupParameter(paramName);
-                if (param != null && !param.IsReadOnly)
-                {
-                    param.Set(value);
-                }
-            }
-            catch { }
-        }
-
-        private string GetElementTypeParameterValue(ElementType elementType, string paramName)
-        {
-            try
-            {
-                Parameter param = elementType.LookupParameter(paramName);
-                if (param != null && param.HasValue)
-                {
-                    return param.AsString();
-                }
-            }
-            catch { }
-            return "";
+            catch (Exception ex) { return new CalculateResult { Success = false, ErrorMessage = ex.Message }; }
         }
     }
-
     public class CalculateResult
     {
         public bool Success { get; set; }

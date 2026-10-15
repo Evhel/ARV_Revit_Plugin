@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -30,6 +30,7 @@ namespace CopyViewsWithRename
             // Подписываемся на события
             UseReplaceCheckBox.Checked += UseReplaceChecked;
             UseReplaceCheckBox.Unchecked += UseReplaceUnchecked;
+            CopiesTextBox.TextChanged += (sender, args) => UpdatePreview();
         }
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -64,9 +65,10 @@ namespace CopyViewsWithRename
 
         private void UpdatePreview()
         {
+            if (PreviewListBox == null || CopiesTextBox == null || FindTextBox == null || ReplaceTextBox == null || _selectedViews == null) return;
             PreviewListBox.Items.Clear();
 
-            if (!int.TryParse(CopiesTextBox.Text, out int copies) || copies <= 0)
+            if (!int.TryParse(CopiesTextBox.Text, out int copies) || copies <= 0 || copies > 100)
                 return;
 
             string findText = FindTextBox.Text;

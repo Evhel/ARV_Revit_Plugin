@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.Attributes;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
@@ -13,9 +13,7 @@ namespace FinishingSchedulePlugin
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
-            UIDocument uiDoc = uiApp.ActiveUIDocument;
-            Document doc = uiDoc.Document;
+            if (!ARV.Common.RevitSupport.TryProject(commandData, out UIDocument uiDoc, out Document doc)) return Result.Cancelled;
 
             try
             {
@@ -31,14 +29,15 @@ namespace FinishingSchedulePlugin
                 string wallGroupFilter = window.WallGroupFilter;
                 string ceilingGroupFilter = window.CeilingGroupFilter;
 
+                string summary;
                 using (Transaction tx = new Transaction(doc, "Ведомость чистовой отделки"))
                 {
                     tx.Start();
-                    ProcessRooms(doc, wallGroupFilter, ceilingGroupFilter, factor);
-                    tx.Commit();
+                    summary = ProcessRooms(doc, wallGroupFilter, ceilingGroupFilter, factor);
+                    ARV.Common.RevitSupport.Commit(tx);
                 }
 
-                TaskDialog.Show("Готово", "Ведомость чистовой отделки успешно создана!");
+                TaskDialog.Show("Чистовая отделка", summary);
 
                 return Result.Succeeded;
             }
@@ -49,7 +48,7 @@ namespace FinishingSchedulePlugin
             }
         }
 
-        private void ProcessRooms(Document doc, string wallGroupFilter, string ceilingGroupFilter, double factor)
+        private string ProcessRooms(Document doc, string wallGroupFilter, string ceilingGroupFilter, double factor)
         {
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -58,8 +57,7 @@ namespace FinishingSchedulePlugin
 
             if (rooms.Count == 0)
             {
-                TaskDialog.Show("Внимание", "В проекте не найдено помещений.");
-                return;
+                throw new InvalidOperationException("В проекте не найдено помещений.");
             }
 
             var walls = GetFilteredElements(doc, BuiltInCategory.OST_Walls, wallGroupFilter);
@@ -80,7 +78,7 @@ namespace FinishingSchedulePlugin
                 if (roomNumberParam == null)
                     continue;
 
-                string roomNumber = roomNumberParam.AsValueString();
+                string roomNumber = ARV.Common.RevitSupport.Text(roomNumberParam);
                 if (string.IsNullOrEmpty(roomNumber))
                     continue;
 
@@ -97,7 +95,7 @@ namespace FinishingSchedulePlugin
                 SetRoomParameterWithAreas(room, "ВО_Потолки_Материал", "ВО_Потолки_Площадь", ceilingMaterials);
 
                 Parameter skirtingParam = room.LookupParameter("Тип плинтуса");
-                string skirtingValue = skirtingParam != null ? skirtingParam.AsValueString() : "";
+                string skirtingValue = skirtingParam != null ? ARV.Common.RevitSupport.Text(skirtingParam) : "";
 
                 // 🔧 Ключ группировки формируется из отсортированных списков
                 string ceilingKey = ceilingMaterials.Count > 0 ? string.Join(";", ceilingMaterials.Select(m => m.MaterialName)) : "";
@@ -141,31 +139,17 @@ namespace FinishingSchedulePlugin
 
                 foreach (Room room in group.Value.Rooms)
                 {
-                    Parameter listParam = room.LookupParameter("ВО_СписокНомеровСтены");
-                    if (listParam != null && !listParam.IsReadOnly)
-                    {
-                        listParam.Set(string.IsNullOrEmpty(group.Key) ? "" : roomNumbersString);
-                    }
-
-                    Parameter wallAreaParam = room.LookupParameter("ВО_Стены_Финишная_Площадь");
-                    if (wallAreaParam != null && !wallAreaParam.IsReadOnly)
-                    {
-                        wallAreaParam.Set(FormatAreaListOrdered(group.Value.WallAreas, group.Value.WallOrder));
-                    }
-
-                    Parameter ceilingAreaParam = room.LookupParameter("ВО_Потолки_Площадь");
-                    if (ceilingAreaParam != null && !ceilingAreaParam.IsReadOnly)
-                    {
-                        ceilingAreaParam.Set(FormatAreaListOrdered(group.Value.CeilingAreas, group.Value.CeilingOrder));
-                    }
+                    ARV.Common.RevitSupport.SetText(room, "ВО_СписокНомеровСтены", string.IsNullOrEmpty(group.Key) ? "" : roomNumbersString);
+                    ARV.Common.RevitSupport.SetText(room, "ВО_Стены_Финишная_Площадь", FormatAreaListOrdered(group.Value.WallAreas, group.Value.WallOrder));
+                    ARV.Common.RevitSupport.SetText(room, "ВО_Потолки_Площадь", FormatAreaListOrdered(group.Value.CeilingAreas, group.Value.CeilingOrder));
                 }
             }
 
-            TaskDialog.Show("Результат", $"Обработано помещений: {processedRoomsCount}\n" +
+            return $"Обработано помещений: {processedRoomsCount}\n" +
                                          $"Стен найдено: {walls.Count}\n" +
                                          $"Потолков найдено: {ceilings.Count}\n" +
                                          $"Групп помещений: {roomGroups.Count}\n" +
-                                         $"Коэффициент запаса: {factor}%");
+                                         $"Коэффициент запаса: {factor}%";
         }
 
         private void UpdateSkirtingLength(Room room, double coefficient)
@@ -177,7 +161,7 @@ namespace FinishingSchedulePlugin
                 if (currentLength > 0)
                 {
                     double newLength = currentLength * coefficient;
-                    skirtingLengthParam.Set(newLength);
+                    ARV.Common.RevitSupport.SetNumber(room, "ADSK_Длина плинтуса", newLength);
                 }
             }
         }
@@ -209,7 +193,7 @@ namespace FinishingSchedulePlugin
 
                 if (groupParam != null)
                 {
-                    string groupValue = groupParam.AsValueString();
+                    string groupValue = ARV.Common.RevitSupport.Text(groupParam);
                     if (groupValue == groupFilter)
                     {
                         filteredElements.Add(elem);
@@ -233,7 +217,7 @@ namespace FinishingSchedulePlugin
                 if (groupingParam == null)
                     continue;
 
-                string elemGroupNumber = groupingParam.AsValueString();
+                string elemGroupNumber = ARV.Common.RevitSupport.Text(groupingParam);
                 if (elemGroupNumber != roomNumber)
                     continue;
 
@@ -248,7 +232,7 @@ namespace FinishingSchedulePlugin
                 Parameter descParam = elemType.LookupParameter("ВО_Описание");
                 if (descParam != null)
                 {
-                    string materialValue = descParam.AsValueString();
+                    string materialValue = ARV.Common.RevitSupport.Text(descParam);
                     if (!string.IsNullOrEmpty(materialValue))
                     {
                         Parameter areaParam = elem.LookupParameter("Площадь") ?? elem.LookupParameter("Area");
@@ -295,17 +279,8 @@ namespace FinishingSchedulePlugin
                 areaValue += $"{i + 1}. {areaInM2:F2}";
             }
 
-            Parameter matParam = room.LookupParameter(materialParamName);
-            if (matParam != null && !matParam.IsReadOnly)
-            {
-                matParam.Set(materialValue);
-            }
-
-            Parameter areaParam = room.LookupParameter(areaParamName);
-            if (areaParam != null && !areaParam.IsReadOnly)
-            {
-                areaParam.Set(areaValue);
-            }
+            ARV.Common.RevitSupport.SetText(room, materialParamName, materialValue);
+            ARV.Common.RevitSupport.SetText(room, areaParamName, areaValue);
         }
 
         private string FormatAreaListOrdered(Dictionary<string, double> areas, List<string> order)

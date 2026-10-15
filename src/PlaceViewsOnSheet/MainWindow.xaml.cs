@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -49,13 +49,13 @@ namespace PlaceViewsOnSheet
             }
 
             // Парсим значения шага (в миллиметрах)
-            if (!double.TryParse(StepXTextBox.Text, out double stepX) || stepX <= 0)
+            if (!ARV.Common.Algorithms.TryNumber(StepXTextBox.Text, out double stepX) || stepX <= 0)
             {
                 MessageBox.Show("Введите корректное значение шага по X (положительное число в миллиметрах).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (!double.TryParse(StepYTextBox.Text, out double stepY) || stepY <= 0)
+            if (!ARV.Common.Algorithms.TryNumber(StepYTextBox.Text, out double stepY) || stepY <= 0)
             {
                 MessageBox.Show("Введите корректное значение шага по Y (положительное число в миллиметрах).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;

@@ -1,152 +1,75 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using ARV.Common;
 
 namespace CopyViewsWithRename
 {
     [Transaction(TransactionMode.Manual)]
-    [Regeneration(RegenerationOption.Manual)]
     public class CopyViewsCommand : IExternalCommand
     {
-        public Result Execute(
-            ExternalCommandData commandData,
-            ref string message,
-            ElementSet elements)
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            UIApplication uiapp = commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
-
             try
             {
-                // Получаем выбранные виды в диспетчере проекта
-                ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
-
-                if (selectedIds.Count == 0)
+                if (!RevitSupport.TryProject(data, out UIDocument uidoc, out Document doc)) return Result.Cancelled;
+                var views = uidoc.Selection.GetElementIds().Select(doc.GetElement).OfType<View>()
+                    .Where(v => !v.IsTemplate && !(v is ViewSheet)).OrderBy(v => v.Name, Algorithms.NameComparer).ToList();
+                if (views.Count == 0)
                 {
-                    TaskDialog.Show("Ошибка", "Пожалуйста, выберите виды в диспетчере проекта перед запуском плагина.");
-                    return Result.Failed;
+                    TaskDialog.Show("Копировать виды", "Выберите виды в диспетчере проекта.");
+                    return Result.Cancelled;
                 }
-
-                // Фильтруем только виды (исключаем шаблоны видов)
-                List<View> selectedViews = new List<View>();
-                foreach (ElementId id in selectedIds)
+                var window = new CopyViewsWindow(views);
+                new System.Windows.Interop.WindowInteropHelper(window) { Owner = data.Application.MainWindowHandle };
+                window.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+                if (window.ShowDialog() != true) return Result.Cancelled;
+                var names = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
+                var errors = new List<string>();
+                int created = 0;
+                using (var transaction = new Transaction(doc, "Копировать виды"))
                 {
-                    Element elem = doc.GetElement(id);
-                    if (elem is View view && !view.IsTemplate)
+                    transaction.Start();
+                    foreach (var view in views)
                     {
-                        // Проверяем, можно ли копировать этот тип вида
-                        // Исключаем некоторые типы видов, которые нельзя копировать
-                        if (view.ViewType != ViewType.ThreeD &&
-                            view.ViewType != ViewType.Legend &&
-                            view.ViewType != ViewType.Schedule &&
-                            view.ViewType != ViewType.DrawingSheet)
+                        if (!view.CanViewBeDuplicated(window.DuplicateOption))
                         {
-                            selectedViews.Add(view);
+                            errors.Add(view.Name + ": выбранный режим копирования недоступен.");
+                            continue;
                         }
-                        else
+                        for (int i = 1; i <= window.CopiesCount; i++)
                         {
-                            TaskDialog.Show("Предупреждение", $"Вид '{view.Name}' типа '{view.ViewType}' не может быть скопирован и будет пропущен.");
-                        }
-                    }
-                }
-
-                if (selectedViews.Count == 0)
-                {
-                    TaskDialog.Show("Ошибка", "Нет доступных для копирования видов.");
-                    return Result.Failed;
-                }
-
-                // Открываем WPF окно
-                CopyViewsWindow window = new CopyViewsWindow(selectedViews);
-                bool? dialogResult = window.ShowDialog();
-
-                if (dialogResult == true)
-                {
-                    int copiesCount = window.CopiesCount;
-                    string findText = window.FindText;
-                    string replaceText = window.ReplaceText;
-                    bool useReplace = window.UseReplace;
-                    ViewDuplicateOption duplicateOption = window.DuplicateOption;
-
-                    int totalCopies = 0;
-                    List<string> errors = new List<string>();
-
-                    using (Transaction trans = new Transaction(doc, "Копирование видов"))
-                    {
-                        trans.Start();
-
-                        foreach (View sourceView in selectedViews)
-                        {
-                            for (int i = 1; i <= copiesCount; i++)
+                            using (var item = new SubTransaction(doc))
                             {
+                                item.Start();
                                 try
                                 {
-                                    // Формируем новое имя
-                                    string newName = sourceView.Name;
-
-                                    if (useReplace && !string.IsNullOrEmpty(findText))
-                                    {
-                                        newName = newName.Replace(findText, replaceText);
-                                    }
-
-                                    // Добавляем суффикс
-                                    if (copiesCount > 1 || !useReplace)
-                                    {
-                                        newName = $"{newName}_копия{i}";
-                                    }
-                                    else
-                                    {
-                                        newName = $"{newName}_{i}";
-                                    }
-
-                                    // Проверяем, существует ли уже вид с таким именем
-                                    FilteredElementCollector collector = new FilteredElementCollector(doc);
-                                    View existingView = collector.OfClass(typeof(View))
-                                        .Cast<View>()
-                                        .FirstOrDefault(v => v.Name == newName && !v.IsTemplate);
-
-                                    if (existingView != null)
-                                    {
-                                        newName = $"{newName}_{DateTime.Now.Ticks}";
-                                    }
-
-                                    // Копируем вид с выбранным типом копирования
-                                    ElementId newViewId = sourceView.Duplicate(duplicateOption);
-                                    View newView = doc.GetElement(newViewId) as View;
-                                    newView.Name = newName;
-                                    totalCopies++;
+                                    string requested = view.Name;
+                                    if (window.UseReplace && !string.IsNullOrEmpty(window.FindText)) requested = requested.Replace(window.FindText, window.ReplaceText);
+                                    requested += window.CopiesCount > 1 || !window.UseReplace ? "_копия" + i : "_" + i;
+                                    var copy = (View)doc.GetElement(view.Duplicate(window.DuplicateOption));
+                                    copy.Name = Algorithms.UniqueName(requested, names);
+                                    if (item.Commit() != TransactionStatus.Committed) throw new InvalidOperationException("Изменение не подтверждено.");
+                                    created++;
                                 }
                                 catch (Exception ex)
                                 {
-                                    errors.Add($"Ошибка при копировании '{sourceView.Name}': {ex.Message}");
+                                    if (item.GetStatus() == TransactionStatus.Started) item.RollBack();
+                                    errors.Add(view.Name + ": " + ex.Message);
                                 }
                             }
                         }
-
-                        trans.Commit();
                     }
-
-                    // Показываем результат
-                    string resultMessage = $"Успешно создано {totalCopies} копий видов.";
-                    if (errors.Count > 0)
-                    {
-                        resultMessage += $"\n\nОшибки:\n{string.Join("\n", errors)}";
-                    }
-
-                    TaskDialog.Show("Результат", resultMessage);
+                    if (created == 0) { transaction.RollBack(); TaskDialog.Show("Копировать виды", string.Join("\n", errors)); return Result.Cancelled; }
+                    RevitSupport.Commit(transaction);
                 }
-
+                TaskDialog.Show("Копировать виды", $"Создано копий: {created}. Ошибок/пропусков: {errors.Count}.\n" + string.Join("\n", errors));
                 return Result.Succeeded;
             }
-            catch (Exception ex)
-            {
-                message = ex.Message;
-                return Result.Failed;
-            }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
         }
     }
 }

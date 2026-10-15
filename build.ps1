@@ -1,13 +1,12 @@
 param(
     [string]$RevitApiPath = 'C:\Program Files\Autodesk\Revit 2022',
-    [string]$MSBuildPath,
-    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
-    [switch]$IncludeExperimental
+    [string]$MSBuildPath
 )
 $ErrorActionPreference = 'Stop'
+$version = '1.1.0'
 if (-not $MSBuildPath) {
     $locator = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-    if (-not (Test-Path -LiteralPath $locator)) { throw 'Install Visual Studio 2022 with .NET desktop build tools.' }
+    if (-not (Test-Path -LiteralPath $locator)) { throw 'Install Visual Studio 2022 with .NET desktop development.' }
     $MSBuildPath = & $locator -latest -products '*' -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
 }
 if (-not $MSBuildPath -or -not (Test-Path -LiteralPath $MSBuildPath)) { throw 'MSBuild not found.' }
@@ -16,30 +15,40 @@ foreach ($name in 'RevitAPI.dll', 'RevitAPIUI.dll') {
 }
 $output = Join-Path $PSScriptRoot 'artifacts'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
-$results = @()
-foreach ($project in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Recurse -Filter *.csproj | Sort-Object FullName) {
-    $projectName = $project.Directory.Name
-    if (-not $IncludeExperimental -and $projectName -in 'CreateCeil','FamilyContainerModel') { continue }
-    $logFile = Join-Path $output ($projectName + '.log')
-    & $MSBuildPath $project.FullName /t:Rebuild /nologo /v:minimal "/p:Configuration=$Configuration" /p:Platform=AnyCPU /p:PlatformTarget=x64 "/p:RevitApiPath=$RevitApiPath" *> $logFile
-    $code = $LASTEXITCODE
-    $results += [pscustomobject]@{ Project=$projectName; ExitCode=$code; Log=$projectName+'.log' }
-    Write-Output ($projectName + ': ' + $(if ($code -eq 0) {'PASS'} else {'FAIL'}))
-}
-$results | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'build-results.json') -Encoding utf8
-if ($results.Where({$_.ExitCode -ne 0}).Count) { throw 'Build failures: see artifacts/build-results.json and project logs.' }
-$package = Join-Path $output 'package'
+$log = Join-Path $output 'solution-build.log'
+& $MSBuildPath (Join-Path $PSScriptRoot 'ARV_Revit_Plugin.sln') /t:Rebuild /nologo /v:minimal /p:Configuration=Release "/p:RevitApiPath=$RevitApiPath" *> $log
+if ($LASTEXITCODE -ne 0) { throw ('Build failed: ' + $log) }
+if (Select-String -LiteralPath $log -Pattern ': warning ') { throw ('Build has warnings: ' + $log) }
+# This directory contains only generated deployment files. Never touch installed add-ins.
+$dist = Join-Path $PSScriptRoot 'dist'
+$package = [IO.Path]::GetFullPath((Join-Path $dist 'Revit2022'))
+if (-not $package.StartsWith([IO.Path]::GetFullPath($PSScriptRoot) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe package path.' }
+if (Test-Path -LiteralPath $package) { Remove-Item -LiteralPath $package -Recurse -Force }
 $pluginFolder = Join-Path $package 'ARV'
 New-Item -ItemType Directory -Path $pluginFolder -Force | Out-Null
-foreach ($project in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Recurse -Filter *.csproj) {
-    if (-not $IncludeExperimental -and $project.Directory.Name -in 'CreateCeil','FamilyContainerModel') { continue }
+$projects = Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Recurse -Filter *.csproj
+if ($projects.Count -ne 12) { throw 'Expected exactly 12 production projects.' }
+foreach ($project in $projects) {
     [xml]$xml = Get-Content -LiteralPath $project.FullName
-    $assemblyName = @($xml.Project.PropertyGroup.AssemblyName | Where-Object {$_})[0]
-    $dll = Join-Path $project.Directory.FullName ("bin\$Configuration\$assemblyName.dll")
-    if (-not (Test-Path -LiteralPath $dll)) { throw ('Build output missing: '+$dll) }
+    $name = @($xml.Project.PropertyGroup.AssemblyName | Where-Object {$_})[0]
+    $dll = Join-Path $project.Directory.FullName ("bin\Release\$name.dll")
+    if (-not (Test-Path -LiteralPath $dll)) { throw ('Missing output: ' + $dll) }
     Copy-Item -LiteralPath $dll -Destination $pluginFolder -Force
 }
-Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src\ARV_Ribbon\Images') -Filter *.png | Copy-Item -Destination $pluginFolder -Force
-Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'assets\installed-icons') -Filter *.png | Copy-Item -Destination $pluginFolder -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ARV_Ribbon.addin') -Destination $package -Force
-Write-Output ('Staged package: '+$package)
+$icons = @('ARV.png','StartWall.png','FinishWall.png','HideKat.png','HideSubK.png','NewSheet.png','CopyView.png','ViewsToSheets.png','ViewsCut.png','ViewNumber.png','Worksets.png')
+foreach ($icon in $icons) {
+    $path = Join-Path $PSScriptRoot ('src\ARV_Ribbon\Images\'+$icon)
+    if ($icon -eq 'ARV.png') { $path = Join-Path $PSScriptRoot 'assets\installed-icons\ARV.png' }
+    Copy-Item -LiteralPath $path -Destination $pluginFolder
+}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ARV_Ribbon.addin') -Destination $package
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'INSTALL_RU.md') -Destination $package
+$hashes = Get-ChildItem -LiteralPath $package -Recurse -File | Sort-Object FullName | ForEach-Object {
+    (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($package.Length + 1).Replace('\','/')
+}
+$hashes | Set-Content -LiteralPath (Join-Path $package 'SHA256SUMS.txt') -Encoding utf8
+$zip = Join-Path $dist ("ARV_Revit_Plugin_Revit2022_v$version.zip")
+Compress-Archive -Path (Join-Path $package '*') -DestinationPath $zip -Force
+(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + (Split-Path $zip -Leaf) | Set-Content -LiteralPath ($zip+'.sha256') -Encoding ascii
+Write-Output ('PASS: 12 projects; package: ' + $package)
+Write-Output ('ZIP: ' + $zip)

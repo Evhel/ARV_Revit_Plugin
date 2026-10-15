@@ -1,12 +1,11 @@
-﻿<Window x:Class="AdjustCropToBreakLines.SettingsWindow"
+<Window x:Class="AdjustCropToBreakLines.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Настройка обрезки видов" 
-        Height="263" Width="480"
+        Height="280" Width="560"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Topmost="True"
         KeyDown="Window_KeyDown">
 
     <Grid Margin="10,10,10,6">
@@ -34,7 +33,7 @@
         <!-- Источники границ -->
         <GroupBox Grid.Row="1" Header="Источники для определения границ" Margin="0,0,0,5" Padding="5">
             <StackPanel Margin="10,5">
-                <CheckBox x:Name="UseBreakLinesCheckBox" Content="Линии обрыва (элементы узлов)" 
+                <CheckBox x:Name="UseBreakLinesCheckBox" Content="Линии обрыва (имя содержит обрыв / разрыв / break)"
                           IsChecked="True" Margin="0,3" FontSize="12"/>
                 <CheckBox x:Name="UseModelElementsCheckBox" Content="Элементы модели (стены, фундамент)" 
                           IsChecked="True" Margin="0,3" FontSize="12"/>

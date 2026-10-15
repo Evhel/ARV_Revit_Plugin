@@ -10,6 +10,8 @@
     <RootNamespace>ARV_Ribbon</RootNamespace>
     <AssemblyName>ARV_Ribbon</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
@@ -92,6 +94,10 @@
     <Content Include="Images\ViewsCut.png" />
     <Content Include="Images\ViewsToSheets.png" />
     <Content Include="Images\Worksets.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
+    <Compile Include="..\Common\RevitSupport.cs"><Link>Common\RevitSupport.cs</Link></Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

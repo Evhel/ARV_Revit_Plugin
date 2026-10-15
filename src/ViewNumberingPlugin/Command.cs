@@ -1,12 +1,12 @@
-﻿using Autodesk.Revit.Attributes;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-using Autodesk.Revit.UI.Selection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using ARV.Common;
 
 namespace ViewNumberingPlugin
 {
@@ -17,130 +17,87 @@ namespace ViewNumberingPlugin
     {
         public static readonly char[] UpperCyrillic = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯ".ToCharArray();
         public static readonly char[] LowerCyrillic = "абвгдежзиклмнопрстуфхцчшщэюя".ToCharArray();
+        private const double RowTolerance = 10.0 / 304.8; // 10 мм на листе, без цепочного объединения строк.
 
-        // Допуск для объединения видов в одну строку (в футах, внутренние единицы Revit)
-        // 0.5 фута ≈ 152 мм. Подходит для большинства стандартных листов.
-        private const double RowTolerance = 0.5;
-
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
-            var doc = uidoc.Document;
-
-            var viewports = uidoc.Selection.GetElementIds()
-                .Select(id => doc.GetElement(id) as Viewport)
-                .Where(vp => vp != null && vp.SheetId != ElementId.InvalidElementId)
-                .ToList();
-
-            if (viewports.Count == 0)
+            try
             {
-                TaskDialog.Show("Ошибка", "Выберите один или несколько видов, размещённых на листе.");
-                return Result.Cancelled;
-            }
-
-            var dialog = new NumberingDialog();
-            if (dialog.ShowDialog() != true) return Result.Cancelled;
-
-            int startIndex = dialog.StartIndex;
-            NumberingType type = dialog.SelectedType;
-
-            using (var tx = new Transaction(doc, "Нумерация видов на листе"))
-            {
-                tx.Start();
-                try
+                if (!RevitSupport.TryProject(data, out UIDocument uidoc, out Document doc)) return Result.Cancelled;
+                var selected = uidoc.Selection.GetElementIds().Select(doc.GetElement).OfType<Viewport>()
+                    .Where(v => v.SheetId != ElementId.InvalidElementId).ToList();
+                if (selected.Count == 0)
                 {
-                    // 1. Снимаем старые номера (избегаем конфликта дубликатов)
-                    for (int i = 0; i < viewports.Count; i++)
-                        SetViewportDetailNumber(viewports[i], $"_TMP_{i}", doc);
-                    doc.Regenerate();
-
-                    // 2. НАДЁЖНАЯ СОРТИРОВКА ПО ПОЛОЖЕНИЮ
-                    var sortedViewports = SortViewportsByPosition(viewports);
-
-                    // 3. Установка финальных номеров
-                    for (int i = 0; i < sortedViewports.Count; i++)
+                    TaskDialog.Show("Нумерация видов", "Выберите видовые экраны на листе.");
+                    return Result.Cancelled;
+                }
+                var dialog = new NumberingDialog();
+                new System.Windows.Interop.WindowInteropHelper(dialog) { Owner = data.Application.MainWindowHandle };
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                if (dialog.ShowDialog() != true) return Result.Cancelled;
+                var changes = new List<Tuple<Viewport, string>>();
+                foreach (var sheetGroup in selected.GroupBy(v => v.SheetId.IntegerValue))
+                {
+                    var sorted = SortViewportsByPosition(sheetGroup.ToList());
+                    var sheet = (ViewSheet)doc.GetElement(new ElementId(sheetGroup.Key));
+                    var selectedIds = new HashSet<int>(sorted.Select(v => v.Id.IntegerValue));
+                    var occupied = new HashSet<string>(sheet.GetAllViewports().Where(id => !selectedIds.Contains(id.IntegerValue))
+                        .Select(id => RevitSupport.Text(doc.GetElement(id).get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER))), StringComparer.OrdinalIgnoreCase);
+                    for (int i = 0; i < sorted.Count; i++)
                     {
-                        string newNumber = GenerateNumber(startIndex + i, type);
-                        SetViewportDetailNumber(sortedViewports[i], newNumber, doc);
+                        string number = GenerateNumber(checked(dialog.StartIndex + i), dialog.SelectedType);
+                        if (occupied.Contains(number)) throw new InvalidOperationException($"Лист {sheet.SheetNumber}: номер «{number}» занят невыбранным видом. Изменения не внесены.");
+                        changes.Add(Tuple.Create(sorted[i], number));
                     }
-
+                }
+                using (var transaction = new Transaction(doc, "Нумерация видов на листе"))
+                {
+                    transaction.Start();
+                    // Случайный префикс + проверка занятых номеров не затрагивают невыбранные виды.
+                    var occupied = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(Viewport)).Cast<Viewport>()
+                        .Select(v => RevitSupport.Text(v.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER))), StringComparer.OrdinalIgnoreCase);
+                    foreach (var change in changes)
+                        SetNumber(change.Item1, Algorithms.UniqueName("ARV_" + Guid.NewGuid().ToString("N"), occupied));
                     doc.Regenerate();
-                    tx.Commit();
-
-                    string firstNum = GenerateNumber(startIndex, type);
-                    string lastNum = GenerateNumber(startIndex + sortedViewports.Count - 1, type);
-                    TaskDialog.Show("Готово",
-                        $"Пронумеровано видов: {sortedViewports.Count}\n" +
-                        $"Логика: Строки сверху-вниз → внутри строки слева-направо\n" +
-                        $"Диапазон: {firstNum} → {lastNum}");
+                    foreach (var change in changes) SetNumber(change.Item1, change.Item2);
+                    doc.Regenerate();
+                    RevitSupport.Commit(transaction);
                 }
-                catch (Exception ex)
-                {
-                    tx.RollBack();
-                    TaskDialog.Show("Ошибка", ex.Message);
-                    return Result.Failed;
-                }
+                TaskDialog.Show("Нумерация видов", $"Пронумеровано: {changes.Count}. На каждом листе: сверху вниз, слева направо.");
+                return Result.Succeeded;
             }
-
-            return Result.Succeeded;
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
         }
 
-        // Явный алгоритм сортировки без зависимости от стабильности LINQ
-        private List<Viewport> SortViewportsByPosition(List<Viewport> viewports)
+        private static List<Viewport> SortViewportsByPosition(List<Viewport> viewports)
         {
-            var coords = viewports.Select(v => new
+            var remaining = viewports.OrderByDescending(v => v.GetBoxCenter().Y).ThenBy(v => v.Id.IntegerValue).ToList();
+            var result = new List<Viewport>();
+            while (remaining.Count > 0)
             {
-                Vp = v,
-                Y = v.GetBoxCenter().Y,
-                X = v.GetBoxCenter().X
-            }).ToList();
-
-            // Сортируем строго по Y убывающе (сверху вниз)
-            coords.Sort((a, b) => b.Y.CompareTo(a.Y));
-
-            // Группируем в строки с учётом допуска
-            var rows = new List<List<dynamic>>();
-            foreach (var c in coords)
-            {
-                if (rows.Count == 0 || Math.Abs(c.Y - rows.Last().Last().Y) > RowTolerance)
-                {
-                    rows.Add(new List<dynamic> { c });
-                }
-                else
-                {
-                    rows.Last().Add(c);
-                }
+                double rowY = remaining[0].GetBoxCenter().Y;
+                var row = remaining.Where(v => rowY - v.GetBoxCenter().Y <= RowTolerance)
+                    .OrderBy(v => v.GetBoxCenter().X).ThenBy(v => v.Id.IntegerValue).ToList();
+                result.AddRange(row);
+                foreach (var item in row) remaining.Remove(item);
             }
-
-            // Внутри каждой строки сортируем по X возрастающе (слева направо)
-            foreach (var row in rows)
-            {
-                row.Sort((a, b) => a.X.CompareTo(b.X));
-            }
-
-            // Объединяем в один список
-            return rows.SelectMany(r => r.Select(item => (Viewport)item.Vp)).ToList();
+            return result;
         }
 
-        private void SetViewportDetailNumber(Viewport vp, string number, Document doc)
+        private static void SetNumber(Viewport viewport, string value)
         {
-            var param = vp.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER);
-            if (param == null) throw new InvalidOperationException($"Вид '{vp.Name}': не найден параметр номера.");
-            if (param.IsReadOnly) throw new InvalidOperationException($"Вид '{vp.Name}': параметр заблокирован (Read-Only). Проверьте шаблон вида.");
-            if (!param.Set(number)) throw new InvalidOperationException($"Вид '{vp.Name}': Revit отклонил номер '{number}'.");
+            var parameter = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER);
+            if (parameter == null || parameter.IsReadOnly) throw new InvalidOperationException("Номер видового экрана недоступен: " + viewport.Id);
+            if (parameter.AsString() != value && !parameter.Set(value)) throw new InvalidOperationException("Не удалось записать номер «" + value + "».");
         }
 
-        private string GenerateNumber(int zeroBasedIndex, NumberingType type)
+        public static string GenerateNumber(int index, NumberingType type)
         {
-            if (type == NumberingType.Digits) return (zeroBasedIndex + 1).ToString();
-
-            char[] letters = type == NumberingType.Upper ? Command.UpperCyrillic : Command.LowerCyrillic;
-            if (zeroBasedIndex < letters.Length) return letters[zeroBasedIndex].ToString();
-
-            return $"ERR_{zeroBasedIndex}"; // >32 видов для букв
+            if (index < 0) throw new ArgumentOutOfRangeException(nameof(index));
+            if (type == NumberingType.Digits) return ((long)index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return Algorithms.LetterNumber(index, new string(type == NumberingType.Upper ? UpperCyrillic : LowerCyrillic));
         }
     }
-
     public class NumberingDialog : Window
     {
         public int StartIndex { get; private set; }
@@ -152,7 +109,7 @@ namespace ViewNumberingPlugin
         public NumberingDialog()
         {
             Title = "Нумерация видов на листе";
-            Width = 350; Height = 200;
+            Width = 380; SizeToContent = SizeToContent.Height; MinHeight = 260;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
 
@@ -160,7 +117,8 @@ namespace ViewNumberingPlugin
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition());
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var lblType = new System.Windows.Controls.Label { Content = "Тип нумерации:", Margin = new Thickness(0, 0, 0, 2) };
             System.Windows.Controls.Grid.SetRow(lblType, 0); grid.Children.Add(lblType);
@@ -180,8 +138,8 @@ namespace ViewNumberingPlugin
             System.Windows.Controls.Grid.SetRow(_txtStart, 3); grid.Children.Add(_txtStart);
 
             var btnPanel = new System.Windows.Controls.StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnOk = new System.Windows.Controls.Button { Content = "Применить", Width = 90, Margin = new Thickness(5) };
-            var btnCancel = new System.Windows.Controls.Button { Content = "Отмена", Width = 90, Margin = new Thickness(5) };
+            var btnOk = new System.Windows.Controls.Button { Content = "Применить", IsDefault = true, Width = 100, Margin = new Thickness(5) };
+            var btnCancel = new System.Windows.Controls.Button { Content = "Отмена", IsCancel = true, Width = 90, Margin = new Thickness(5) };
 
             btnOk.Click += (s, e) => { if (ValidateInput()) DialogResult = true; };
             btnCancel.Click += (s, e) => DialogResult = false;
@@ -197,7 +155,7 @@ namespace ViewNumberingPlugin
         private void UpdateInfo()
         {
             SelectedType = (NumberingType)_cmbType.SelectedIndex;
-            _txtStart.Text = SelectedType == NumberingType.Digits ? "1" : "А";
+            _txtStart.Text = SelectedType == NumberingType.Digits ? "1" : SelectedType == NumberingType.Upper ? "А" : "а";
         }
 
         private bool ValidateInput()

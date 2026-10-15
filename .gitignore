@@ -8,5 +8,8 @@
 artifacts/
 *.dll
 *.exe
+*.zip
 .env
 .env.*
+!dist/Revit2022/ARV/*.dll
+!dist/*.zip
