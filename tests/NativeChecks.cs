@@ -261,3 +261,40 @@ namespace ARV.Tests
         }
     }
 }
+
+namespace ARV.Tests
+{
+    // Никаких транзакций или изменений модели. Проверяет доступность в read-only API-контексте.
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ReadOnlyAvailabilityCheck : Autodesk.Revit.UI.IExternalCommand
+    {
+        public Autodesk.Revit.UI.Result Execute(Autodesk.Revit.UI.ExternalCommandData data, ref string message, Autodesk.Revit.DB.ElementSet elements)
+        {
+            string root = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), @"..\.."));
+            var doc = data.Application.ActiveUIDocument?.Document;
+            if (doc == null || doc.IsFamilyDocument) return Autodesk.Revit.UI.Result.Cancelled;
+            var lines = new System.Collections.Generic.List<string>();
+            lines.Add("ReadOnlyContext=" + doc.IsReadOnly);
+            try
+            {
+                foreach (string name in new[] {"WallStartSchedule", "FinishingSchedulePlugin", "HideCategory", "HideSubCategory", "CreateBlankSheetsPlugin", "CopyViewsWithRename", "PlaceViewsOnSheet", "TightCropPlugin", "ViewNumberingPlugin", "CreateViewsForWorksets"})
+                {
+                    var assembly = System.Reflection.Assembly.LoadFrom(System.IO.Path.Combine(root,"dist","Revit2022","ARV",name+".dll"));
+                    var check = (Autodesk.Revit.UI.IExternalCommandAvailability)System.Activator.CreateInstance(assembly.GetType("ARV.Common.ProjectCommandAvailability", true));
+                    bool enabled = check.IsCommandAvailable(data.Application, new Autodesk.Revit.DB.CategorySet());
+                    lines.Add(name + " " + assembly.GetName().Version + " Enabled=" + enabled);
+                    if (!enabled) throw new System.InvalidOperationException("Disabled: " + name);
+                }
+                System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"artifacts","availability-native-report.txt"), lines);
+                Autodesk.Revit.UI.TaskDialog.Show("ARV 1.1.1", "Все десять проверок доступности вернули true. Модель не изменялась.");
+                return Autodesk.Revit.UI.Result.Succeeded;
+            }
+            catch (System.Exception ex)
+            {
+                message = ex.ToString(); lines.Add(message);
+                System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"artifacts","availability-native-report.txt"), lines);
+                return Autodesk.Revit.UI.Result.Failed;
+            }
+        }
+    }
+}

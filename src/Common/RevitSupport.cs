@@ -9,7 +9,9 @@ namespace ARV.Common
         public bool IsCommandAvailable(UIApplication app, CategorySet categories)
         {
             var doc = app.ActiveUIDocument?.Document;
-            return doc != null && !doc.IsFamilyDocument && !doc.IsReadOnly;
+            // Availability вызывается вне команды: временный IsReadOnly здесь не должен выключать кнопки.
+            // Проверка возможности изменения остаётся в TryProject при запуске команды.
+            return doc != null && !doc.IsFamilyDocument;
         }
     }
 

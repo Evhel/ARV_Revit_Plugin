@@ -1,117 +1,117 @@
 ﻿{
-    "Version":  "1.1.0",
+    "Version":  "1.1.1",
     "ButtonMappings":  11,
     "Assemblies":  [
                        {
                            "File":  "ARV_Ribbon.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             null
                                         ],
-                           "SHA256":  "9c911bab8eede42a1a8ba998900f4013272db22bc1bfb0c227c155c3e20e9199"
+                           "SHA256":  "457484d79b1c12113793cece8629047f7a5b776b56d47a4112c99b638e0ed78c"
                        },
                        {
                            "File":  "BuildinOpener.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "BuildinOpener.OpenBuildinCommand"
                                         ],
-                           "SHA256":  "c710bdf7102cff9efd5d92aa46e2471788d6d6b21e961a76715f6358fb780bb1"
+                           "SHA256":  "9857611ccea4fedcd3ff1cb631024c35931237e260c8b57bd89c08ac48c7e3d6"
                        },
                        {
                            "File":  "CopyViewsWithRename.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "CopyViewsWithRename.CopyViewsCommand"
                                         ],
-                           "SHA256":  "deeb83e4e2e44f80304114e9c99b58dc340080334a7b63ca00f27855e860b31c"
+                           "SHA256":  "f403b33a9a65d93aa631cf01654bdd17feb387776efe0a2122488f3aef26be44"
                        },
                        {
                            "File":  "CreateBlankSheetsPlugin.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "CreateBlankSheetsPlugin.CreateBlankSheetsCommand"
                                         ],
-                           "SHA256":  "d9944a109d7730836fabdf127228f4b9bd4d56e2dad91071b631f2e062bce1a4"
+                           "SHA256":  "f996d265a39640fef61fcb03e1b8074015a91fe45efe5856acc84b89b5bf6a78"
                        },
                        {
                            "File":  "CreateViewsForWorksets.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "WorksetViewsPlugin.WorksetViewsCommand"
                                         ],
-                           "SHA256":  "21b810e26a00181eeefd586f84f2f3f27d8b091daaff2d06408d4687b88abe6e"
+                           "SHA256":  "b53210b6d9af19637f7c9e32e3ba18c34a941528c5e2eb6caa664711cd656f83"
                        },
                        {
                            "File":  "FinishingSchedulePlugin.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "FinishingSchedulePlugin.Command"
                                         ],
-                           "SHA256":  "a0e524d45f5461839d628f6b645a1772360c19df879cc85836ed565e8a86a3c1"
+                           "SHA256":  "614c40b681f138eb9c006f74eefa32dceb26131830ebdfeab19e432ac8977b04"
                        },
                        {
                            "File":  "HideCategory.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "HideCategory.ExternalCommand"
                                         ],
-                           "SHA256":  "e00a01c025639e87c942ab6e626666928c67fcec294b2d0459b62c819c47223a"
+                           "SHA256":  "74bd3ade6a5d6cda98d983464c253bcf1b3520d15debc744bfde613094f78cb8"
                        },
                        {
                            "File":  "HideSubCategory.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "HideCategory.ExternalCommand"
                                         ],
-                           "SHA256":  "78c804c2a6b6f3d3a28af4218f74be52d3f27f21689b4c9b589fc4fc66ce1ea7"
+                           "SHA256":  "13f7600144ef088fb7bcc0a985f49ca66fd67224fd6626de5644b7cbec4adc6f"
                        },
                        {
                            "File":  "PlaceViewsOnSheet.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "PlaceViewsOnSheet.PlaceViewsCommand"
                                         ],
-                           "SHA256":  "a8202472dcb1805a87bd4de5df00cd38df0b6c2cc36b435540376f381f43a903"
+                           "SHA256":  "0863c62914628147904af2f8dc476d88b127c6947f8bfc67428587a59c724ad8"
                        },
                        {
                            "File":  "TightCropPlugin.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "AdjustCropToBreakLines.AdjustCropToBreakLinesCommand"
                                         ],
-                           "SHA256":  "545eaf1ed1c292605bb978556d5c256fd914fae25baf7d473e9b4f950fa6e07c"
+                           "SHA256":  "e9e48d883bd82d5723af0ca1d1c9ff67e01578afeabb51febb9e3583c30ca1a3"
                        },
                        {
                            "File":  "ViewNumberingPlugin.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "ViewNumberingPlugin.Command"
                                         ],
-                           "SHA256":  "642a7ac3c6ae51169ef5a74f369542a289c80b0f3cf0a21e8483e36a66fc82ca"
+                           "SHA256":  "ea288fb57cbcc7f7c2e7606a3e62a715279fe273ecc9492292fe08c325873cf1"
                        },
                        {
                            "File":  "WallStartSchedule.dll",
-                           "Version":  "1.1.0.0",
+                           "Version":  "1.1.1.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "WallStartSchedule.Command"
                                         ],
-                           "SHA256":  "239c4c66fa4bbce6fba6487889bd5c46c0dbd88f5c28f91b532f49eba6687f3b"
+                           "SHA256":  "9866090ef4107ec7656f8fd121f8ab6e5ab25d7393dca54d992ca23b07f82822"
                        }
                    ],
     "ZipFiles":  26,
-    "ZipSHA256":  "e27849d743c3fcb370deaa16fe35289bd9eb662998478ec0890de1fb1ab79ab9",
+    "ZipSHA256":  "e58f75ccb79aabf0d4b21738768f2cbec4b167bb56614f65dccd0b6eba72f7c8",
     "NativeExecution":  "Not run: existing Revit window capture timed out twice."
 }
