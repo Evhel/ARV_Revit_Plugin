@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <RevitApiPath Condition="'$(RevitApiPath)' == ''">C:\Program Files\Autodesk\Revit 2022</RevitApiPath>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,38 @@
+﻿<Window x:Class="FinishingSchedulePlugin.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ведомость чистовой отделки" Height="320" Width="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="15"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="15"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="15"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Коэффициент запаса (0-100):" FontWeight="Bold"/>
+            <TextBox x:Name="txtFactor" Margin="0,8,0,0" VerticalContentAlignment="Center" Height="25"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="Группа модели для Стен:" FontWeight="Bold"/>
+            <ComboBox x:Name="cmbWalls" Margin="0,8,0,0" Height="25"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4">
+            <TextBlock Text="Группа модели для Потолков:" FontWeight="Bold"/>
+            <ComboBox x:Name="cmbCeilings" Margin="0,8,0,0" Height="25"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="OK" Width="90" Height="30" Margin="0,0,15,0" Click="BtnOk_Click"/>
+            <Button Content="Отмена" Width="90" Height="30" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

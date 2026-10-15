@@ -1,0 +1,62 @@
+[
+  {
+    "Project": "ARV_Ribbon",
+    "ExitCode": 0,
+    "Log": "ARV_Ribbon.log"
+  },
+  {
+    "Project": "BuildinOpener",
+    "ExitCode": 0,
+    "Log": "BuildinOpener.log"
+  },
+  {
+    "Project": "CopyViewsWithRename",
+    "ExitCode": 0,
+    "Log": "CopyViewsWithRename.log"
+  },
+  {
+    "Project": "CreateBlankSheetsPlugin",
+    "ExitCode": 0,
+    "Log": "CreateBlankSheetsPlugin.log"
+  },
+  {
+    "Project": "CreateViewsForWorksets",
+    "ExitCode": 0,
+    "Log": "CreateViewsForWorksets.log"
+  },
+  {
+    "Project": "FinishingSchedulePlugin",
+    "ExitCode": 0,
+    "Log": "FinishingSchedulePlugin.log"
+  },
+  {
+    "Project": "HideCategory",
+    "ExitCode": 0,
+    "Log": "HideCategory.log"
+  },
+  {
+    "Project": "HideSubCategory",
+    "ExitCode": 0,
+    "Log": "HideSubCategory.log"
+  },
+  {
+    "Project": "PlaceViewsOnSheet",
+    "ExitCode": 0,
+    "Log": "PlaceViewsOnSheet.log"
+  },
+  {
+    "Project": "TightCropPlugin",
+    "ExitCode": 0,
+    "Log": "TightCropPlugin.log"
+  },
+  {
+    "Project": "ViewNumberingPlugin",
+    "ExitCode": 0,
+    "Log": "ViewNumberingPlugin.log"
+  },
+  {
+    "Project": "WallStartSchedule",
+    "ExitCode": 0,
+    "Log": "WallStartSchedule.log"
+  }
+]

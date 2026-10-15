@@ -1,0 +1,35 @@
+﻿<Window x:Class="HideCategory.UserWindRoom"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:HideCategory"
+             mc:Ignorable="d" 
+             Title="Скрыть подкатегорию" Height="250" Width="400">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Выберите категорию:" Grid.Row="0" Margin="0,0,0,5"/>
+        <ComboBox x:Name="CategoryComboBox" Grid.Row="1" Margin="0,0,0,10" 
+                  Height="25" SelectionChanged="OnCategorySelectionChanged"/>
+
+        <TextBlock Text="Выберите подкатегорию:" Grid.Row="2" Margin="0,0,0,5"/>
+        <ComboBox x:Name="SubCategoryComboBox" Grid.Row="3" Margin="0,0,0,10" 
+                  Height="25" IsEnabled="False"/>
+
+        <Button Content="Скрыть подкатегорию" Width="180" Height="30" 
+                Grid.Row="4" HorizontalAlignment="Center" 
+                Click="OnHideCategoryClick" Margin="0,10,0,0"/>
+
+        <ListBox x:Name="AllRoomsView" Grid.Row="5" HorizontalAlignment="Stretch" 
+                 VerticalAlignment="Stretch" Visibility="Collapsed"/>
+    </Grid>
+</Window>

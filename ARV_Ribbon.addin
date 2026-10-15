@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>ARV Tools</Name>
+    <Assembly>C:\ProgramData\Autodesk\Revit\Addins\2022\ARV\ARV_Ribbon.dll</Assembly>
+    <AddInId>{8E3F5A2B-1C4D-4E9F-A8B7-3D6C9E1F4A2B}</AddInId>
+    <FullClassName>ARV_Ribbon.App</FullClassName>
+    <VendorId>ARV</VendorId>
+    <VendorDescription>Инструменты ARV</VendorDescription>
+  </AddIn>
+</RevitAddIns>

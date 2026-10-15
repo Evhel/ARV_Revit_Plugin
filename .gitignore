@@ -1,0 +1,12 @@
+.vs/
+**/bin/
+**/obj/
+**/packages/
+*.user
+*.suo
+*.pdb
+artifacts/
+*.dll
+*.exe
+.env
+.env.*
