@@ -79,6 +79,7 @@
         <Compile Include="HostGeometry.cs"/>
         <Compile Include="HostMatchingMath.cs"/>
         <Compile Include="RehostService.cs"/>
+        <Compile Include="OutsideHostWarnings.cs"/>
         <Compile Include="ReportWindow.xaml.cs">
             <DependentUpon>ReportWindow.xaml</DependentUpon>
         </Compile>

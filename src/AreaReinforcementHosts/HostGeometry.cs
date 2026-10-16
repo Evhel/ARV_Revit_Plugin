@@ -10,11 +10,17 @@ namespace ARV.AreaReinforcementHosts
     {
         internal const double Tolerance = 2.0 / 304.8;
 
-        internal static IList<Wall> WallsOnSameBaseLevel(Document doc, Wall reference)
+        internal static Level BaseLevel(Document doc, Wall reference)
         {
             var parameter = reference.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
             ElementId level = parameter == null ? ElementId.InvalidElementId : parameter.AsElementId();
             if (!(doc.GetElement(level) is Level)) throw new InvalidOperationException("У выбранной стены не определён базовый уровень.");
+            return (Level)doc.GetElement(level);
+        }
+
+        internal static IList<Wall> WallsOnSameBaseLevel(Document doc, Wall reference)
+        {
+            ElementId level = BaseLevel(doc, reference).Id;
             return new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>()
                 .Where(w => w.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT)?.AsElementId() == level)
                 .Where(w => RebarHostData.IsValidHost(w)).ToList();

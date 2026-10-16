@@ -25,6 +25,9 @@ namespace ARV.AreaReinforcementHosts
             using (var transaction = new Transaction(doc, "ARV — смена основы армирования по площади"))
             {
                 transaction.Start();
+                var options = transaction.GetFailureHandlingOptions();
+                options.SetFailuresPreprocessor(new OutsideHostWarnings());
+                transaction.SetFailureHandlingOptions(options);
                 foreach (var id in ids)
                 {
                     var result = new RehostResult { OldId = id.IntegerValue.ToString(), NewId = "—", HostId = "—", Status = "Пропущено" };

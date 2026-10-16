@@ -31,8 +31,12 @@ namespace ARV.AreaReinforcementHosts
     internal sealed class AreaFilter : ISelectionFilter
     {
         private readonly Document doc;
-        internal AreaFilter(Document document) { doc = document; }
-        public bool AllowElement(Element element) { return SelectionSupport.Resolve(doc, element) != null; }
+        private readonly bool includeSystemBars;
+        internal AreaFilter(Document document, bool allowSystemBars = true) { doc = document; includeSystemBars = allowSystemBars; }
+        public bool AllowElement(Element element)
+        {
+            return element is AreaReinforcement || (includeSystemBars && SelectionSupport.Resolve(doc, element) != null);
+        }
         public bool AllowReference(Reference reference, XYZ point) { return false; }
     }
 
@@ -61,7 +65,8 @@ namespace ARV.AreaReinforcementHosts
                 var hostReference = ui.Selection.PickObject(ObjectType.Element, new HostFilter(false), "Выберите новую основу: конструктивную стену, перекрытие или подходящую часть. Esc — отмена.");
                 var host = doc.GetElement(hostReference);
                 var results = RehostService.Run(doc, new List<ElementId> { source.Id }, host, null);
-                SelectionSupport.Report(data.Application, results, "Смена основы одного армирования по площади");
+                if (results.Any(result => result.Status != "Изменено"))
+                    SelectionSupport.Report(data.Application, results, "Смена основы одного армирования по площади");
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
@@ -82,14 +87,17 @@ namespace ARV.AreaReinforcementHosts
                     .Select(a => a.Id).Distinct().ToList();
                 if (selected.Count == 0)
                 {
-                    TaskDialog.Show("ARV — основы армирования", "Сначала выделите армирования по площади одного этажа и запустите команду снова.");
-                    return Result.Cancelled;
+                    selected = ui.Selection.PickObjects(ObjectType.Element, new AreaFilter(doc, false),
+                        "Выберите армирования по площади одного этажа и нажмите «Готово». Esc — отмена.")
+                        .Select(picked => doc.GetElement(picked).Id).Distinct().ToList();
+                    if (selected.Count == 0) return Result.Cancelled;
                 }
                 var reference = ui.Selection.PickObject(ObjectType.Element, new HostFilter(true), "Выберите стену нужного этажа. Её базовый уровень задаёт этаж поиска основ.");
                 var wall = (Wall)doc.GetElement(reference);
+                var level = HostGeometry.BaseLevel(doc, wall);
                 var candidates = HostGeometry.WallsOnSameBaseLevel(doc, wall);
                 var results = RehostService.Run(doc, selected, null, candidates);
-                SelectionSupport.Report(data.Application, results, "Этаж по базовому уровню стены " + wall.Id.IntegerValue + ". Поиск по нижней границе контура.");
+                SelectionSupport.Report(data.Application, results, "Базовый уровень: «" + level.Name + "». Поиск стен по нижней границе контура.");
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
