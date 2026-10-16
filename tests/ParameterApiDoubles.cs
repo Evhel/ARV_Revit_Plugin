@@ -22,14 +22,24 @@ public static class ParameterRegression {
  static void Check(bool ok,string name){if(!ok)throw new Exception(name);count++;}
  static Autodesk.Revit.DB.Parameter Add(Autodesk.Revit.DB.Element e,int id,int value){var p=new Autodesk.Revit.DB.Parameter{Id=new Autodesk.Revit.DB.ElementId(id),Definition=new Autodesk.Revit.DB.Definition{Name="P"+id},Value=value};e.Parameters.Add(p);return p;}
  public static string Run(){
-  // A matching display field refuses direct Set; restoring the actual layer data
-  // recalculates it on regeneration. This reproduces the reported failure.
+  // Real-project regression: comparison indicators refuse Set and may remain
+  // different even after regeneration. Do not assume they recalculate to our liking.
   foreach(int matchId in new[]{-1018020,-1018021,-1018022,-1018023}) foreach(int expected in new[]{0,1}) {
-   var source=new Autodesk.Revit.DB.Element();Add(source,matchId,expected);Add(source,10,expected==0?120:200);
-   var target=new Autodesk.Revit.DB.Element();var match=Add(target,matchId,1-expected);var spacing=Add(target,10,200);
-   int refused=0;match.Setter=v=>{refused++;return false;};target.Document.OnRegenerate=()=>match.Value=spacing.AsInteger()==200?1:0;
+   var source=new Autodesk.Revit.DB.Element();Add(source,matchId,expected);
+   var sourceSpacing=Add(source,10,0);sourceSpacing.StorageType=Autodesk.Revit.DB.StorageType.Double;sourceSpacing.Value=0.5;
+   var sourceType=Add(source,11,0);sourceType.StorageType=Autodesk.Revit.DB.StorageType.ElementId;sourceType.Value=new Autodesk.Revit.DB.ElementId(123);
+   Add(source,12,1); // active layer
+   var target=new Autodesk.Revit.DB.Element();var match=Add(target,matchId,1-expected);
+   var spacing=Add(target,10,0);spacing.StorageType=Autodesk.Revit.DB.StorageType.Double;spacing.Value=1.0;
+   var barType=Add(target,11,0);barType.StorageType=Autodesk.Revit.DB.StorageType.ElementId;barType.Value=new Autodesk.Revit.DB.ElementId(456);
+   var active=Add(target,12,0);
+   int refused=0;match.Setter=v=>{refused++;return false;};
    var snapshot=ParameterValue.Read(source);ParameterValue.ApplyAll(snapshot,target);foreach(var p in snapshot)p.Verify(target);
-   Check(match.AsInteger()==expected,"matching layer restored "+matchId+"/"+expected);
+   Check(refused==0 && snapshot.Count==3 && match.AsInteger()==1-expected && spacing.AsDouble()==0.5 && barType.AsElementId()==sourceType.AsElementId() && active.AsInteger()==1,
+    "exclude comparison flag while preserving actual settings "+matchId+"/"+expected);
+   spacing.Value=0.7;bool rejected=false;
+   try{foreach(var p in snapshot)p.Verify(target);}catch(InvalidOperationException){rejected=true;}
+   Check(rejected,"real spacing mismatch still rejected "+matchId+"/"+expected);
   }
   {
    var source=new Autodesk.Revit.DB.Element();Add(source,1,10);Add(source,2,1);

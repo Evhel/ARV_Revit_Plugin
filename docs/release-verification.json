@@ -1,136 +1,136 @@
 ﻿{
-    "Version":  "1.4.2",
+    "Version":  "1.4.3",
     "ButtonMappings":  14,
     "Assemblies":  [
                        {
                            "File":  "AreaReinforcementHosts.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "ARV.AreaReinforcementHosts.RehostSingleCommand",
                                             "ARV.AreaReinforcementHosts.RehostByFloorCommand"
                                         ],
-                           "SHA256":  "2191bbdbcfc9bf43bfb6bf6daa1d38234b79113ff1643f70c39f6c2472481fdd"
+                           "SHA256":  "3cbda499cb4a3555aad3ce2cc1b23ddc778bae86c7d751902371be4fe7099d1d"
                        },
                        {
                            "File":  "Arv.OriginRelocator.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "Arv.OriginRelocator.MoveToInternalOriginCommand"
                                         ],
-                           "SHA256":  "f3251a4caefe5d3947363a09c5b2cdb7f5a97a48bad7b7147483532644e2db76"
+                           "SHA256":  "bfbdcb9476bcce28cc6fb3ce8039c9d017da19e40076bd59f703f74469445a0a"
                        },
                        {
                            "File":  "ARV_Ribbon.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             null
                                         ],
-                           "SHA256":  "f3cde621d0bad1e079b8cdf2195a6b3012347535022097215ed2fbe52fe9ec43"
+                           "SHA256":  "c5ba530579497bb263870dd944b65a1460177901f74d8ee72f2ca51f4b87c00d"
                        },
                        {
                            "File":  "BuildinOpener.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "BuildinOpener.OpenBuildinCommand"
                                         ],
-                           "SHA256":  "25d72e2bd533842cbf319f863293bd897220d9b67fae9c001e0c3baadef9d182"
+                           "SHA256":  "013ff30e985723c238607e3c200df8933bdce03caeb66d9c93045cb412e9fbf7"
                        },
                        {
                            "File":  "CopyViewsWithRename.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "CopyViewsWithRename.CopyViewsCommand"
                                         ],
-                           "SHA256":  "dfb3f672ef15684f3ae54de48df8d5668e089da11938709b9781769137a216e3"
+                           "SHA256":  "dbe7e64ed43649e61c7d74a171e05b790b30730c548768464d22e85c6c719a02"
                        },
                        {
                            "File":  "CreateBlankSheetsPlugin.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "CreateBlankSheetsPlugin.CreateBlankSheetsCommand"
                                         ],
-                           "SHA256":  "c0aef722c9acda031421e837d4c6418b40481ec0ad6d0a0aae03adfc238f67b0"
+                           "SHA256":  "7fe133a2850062587e910a7900ce42d4632189695ca9037d4d843520b71234da"
                        },
                        {
                            "File":  "CreateViewsForWorksets.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "WorksetViewsPlugin.WorksetViewsCommand"
                                         ],
-                           "SHA256":  "d7201261a6e60432d4b235b758501782c20128dd11263948539573f0dc429b7a"
+                           "SHA256":  "b0a95476c648613c9a827c78321c5116edd1ba78ccbd42acc14572ea310fc983"
                        },
                        {
                            "File":  "FinishingSchedulePlugin.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "FinishingSchedulePlugin.Command"
                                         ],
-                           "SHA256":  "253fd4e76e74b45b5f59a103e9c9ba1b3de9041297bdba1ad29869897ea5f766"
+                           "SHA256":  "33db310ed2af26d44f89b9a8f18a0a637e5d5c358c858fab5bf80ce6509da51d"
                        },
                        {
                            "File":  "HideCategory.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "HideCategory.ExternalCommand"
                                         ],
-                           "SHA256":  "e6a3f7e2b7aa75563598685963aa2002952d014764139e73bc7d8d2ef3649c0c"
+                           "SHA256":  "5dcf076ffa037a89a2405169ac74f21409908d9616ea9e51692cd46f32793e80"
                        },
                        {
                            "File":  "HideSubCategory.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "HideCategory.ExternalCommand"
                                         ],
-                           "SHA256":  "8a2b0e68d1581777074d9887349820e7d16aa23810d7edb6dfeabe17e6df9eb3"
+                           "SHA256":  "6e3a368f49cafa684cec1f85afe7ea2da0654ff55c31db1089b7b21539f58c87"
                        },
                        {
                            "File":  "PlaceViewsOnSheet.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "PlaceViewsOnSheet.PlaceViewsCommand"
                                         ],
-                           "SHA256":  "e41f6129959dc3c6ee20702eeb6d40e78516c6fe6bccae37bad2b0608cec0aeb"
+                           "SHA256":  "381b61464e2d9a666be0a6d31b5d816c5dd9abc5db418e92a8cf67ea30917041"
                        },
                        {
                            "File":  "TightCropPlugin.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "AdjustCropToBreakLines.AdjustCropToBreakLinesCommand"
                                         ],
-                           "SHA256":  "05d4adb10e6a8ce847df55d42d80ee63298ff60744125ae684ba7b9ce9f7295c"
+                           "SHA256":  "1c2e9ee6f64dfe268cf501b8edeb44d39ffdb8520b134b000290a2b74728fc1a"
                        },
                        {
                            "File":  "ViewNumberingPlugin.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "ViewNumberingPlugin.Command"
                                         ],
-                           "SHA256":  "793260f3c077755cfb0ac32c24a87019b2623d66791aaebe961f6dcefc89b864"
+                           "SHA256":  "1d6a43a285eedf24ce8d9bce8cd5e3b90127a5ea2492ed93b36627d8a2db5730"
                        },
                        {
                            "File":  "WallStartSchedule.dll",
-                           "Version":  "1.4.2.0",
+                           "Version":  "1.4.3.0",
                            "Architecture":  "Amd64",
                            "Commands":  [
                                             "WallStartSchedule.Command"
                                         ],
-                           "SHA256":  "00e51710430d81e37c025e01ca46adf2e35c5b5c70cd42aca44ae78ffa94bb3c"
+                           "SHA256":  "b49716882e15bb328072eb7cda2211fe781a810190ffb8a8fd58dd57180baad0"
                        }
                    ],
     "ZipFiles":  31,
-    "ZipSHA256":  "fb510a8ed7784235d1615642552935eab3c3c016202fcf9f9c6b36ec91493773",
+    "ZipSHA256":  "6da32256614374dcdf2269e73c7266c550d5658d69439323910eab9f02b5a43f",
     "NativeExecution":  "Manual verification by owner; automation intentionally not run."
 }

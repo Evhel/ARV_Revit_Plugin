@@ -19,6 +19,10 @@ namespace ARV.AreaReinforcementHosts
             foreach (Parameter p in element.Parameters)
             {
                 if (!p.HasValue || p.StorageType == StorageType.None) continue;
+                // These four comparison indicators are not layer configuration inputs.
+                // Revit can expose IsReadOnly=false but still reject Set. Preserve and
+                // verify the actual bar types, spacing, hooks and activity instead.
+                if (IsLayerMatch(p.Id.IntegerValue)) continue;
                 var global = p.GetAssociatedGlobalParameter();
                 if (p.IsReadOnly && global == ElementId.InvalidElementId) continue;
                 object value;
@@ -80,7 +84,7 @@ namespace ARV.AreaReinforcementHosts
         internal static void ApplyAll(IEnumerable<ParameterValue> values, Element element)
         {
             // Режим раскладки/активность слоя могут разблокировать остальные поля.
-            var pending = values.OrderBy(v => v.IsLayerMatch ? 1 : 0).ToList();
+            var pending = values.ToList();
             while (pending.Count > 0)
             {
                 int before = pending.Count;
@@ -89,14 +93,17 @@ namespace ARV.AreaReinforcementHosts
                 element.Document.Regenerate();
                 pending.RemoveAll(value => value.Matches(element));
                 if (pending.Count == before)
-                    throw new InvalidOperationException("Не удалось сохранить параметр «" + pending[0].Name + "»: поле заблокировано новой основой.");
+                    throw new InvalidOperationException("Revit не принял значение параметра «" + pending[0].Name + "» (ID " + pending[0].ParameterId + "). Исходное армирование сохранено.");
             }
         }
 
-        private bool IsLayerMatch { get { return ParameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MAJOR_MATCHES_TOP_MINOR ||
-            ParameterId == (int)BuiltInParameter.REBAR_SYSTEM_BOTTOM_MAJOR_MATCHES_BOTTOM_MINOR ||
-            ParameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MAJOR_MATCHES_BOTTOM_MAJOR ||
-            ParameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MINOR_MATCHES_BOTTOM_MINOR; } }
+        private static bool IsLayerMatch(int parameterId)
+        {
+            return parameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MAJOR_MATCHES_TOP_MINOR ||
+            parameterId == (int)BuiltInParameter.REBAR_SYSTEM_BOTTOM_MAJOR_MATCHES_BOTTOM_MINOR ||
+            parameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MAJOR_MATCHES_BOTTOM_MAJOR ||
+            parameterId == (int)BuiltInParameter.REBAR_SYSTEM_TOP_MINOR_MATCHES_BOTTOM_MINOR;
+        }
 
         private bool Matches(Element element)
         {
