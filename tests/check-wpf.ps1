@@ -50,9 +50,12 @@ $elementCatalog=[Activator]::CreateInstance($elementAssembly.GetType('ARV.Elemen
 $elementCatalog.Parameters.Add((New-ElementChoice -1 '' 'Порядковый номер (без параметра)'))
 $elementCatalog.Parameters.Add((New-ElementChoice 100 'I:mark' 'Марка (экземпляр)'))
 $elementCatalog.SectionTypes.Add((New-ElementChoice 1 '' 'Разрез элемента'))
-$elementCatalog.Templates.Add((New-ElementChoice -1 '' 'Без шаблона'))
+$elementCatalog.Templates.Add((New-ElementChoice -1 '' 'Выберите шаблон'))
 $elementCatalog.Templates.Add((New-ElementChoice 2 '' 'АР_Колонны 1:20'))
+$elementCatalog.Templates.Add((New-ElementChoice 4 '' 'КЖ_Разрезы 1:50'))
 $elementCatalog.TitleBlocks.Add((New-ElementChoice 3 '' 'ARV_A1: Горизонтальный'))
+$elementCatalog.ViewportTypes.Add((New-ElementChoice -1 '' 'По умолчанию проекта'))
+$elementCatalog.ViewportTypes.Add((New-ElementChoice 22 '' 'Без заголовка'))
 for($i=0;$i -lt 50;$i++) {
  $element=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ElementData'));$element.Id=$i+1;$element.Name='Колонна';$element.AxisX=New-ElementPoint 1 0 0;$element.AxisY=New-ElementPoint 0 1 0
  $points=[Array]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.Point3'),8);$n=0;$bottom=[Math]::Floor($i/17)*10
@@ -60,10 +63,11 @@ for($i=0;$i -lt 50;$i++) {
  $element.Corners=$points;$element.Values.Add('I:mark',('К-'+(($i%17)+1)));$elementCatalog.Elements.Add($element)
 }
 $elementDialog=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.MainWindow'),[object[]]@($elementCatalog))
+foreach($row in $elementDialog.Rows){$row.TemplateId=2}
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=1;$elementDialog.FindName('UniqueCheckBox').IsChecked=$true
 $elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
 if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 17 из 50' -or $elementDialog.Rows.Count -ne 7) {throw 'Element-view selection preview regression'}
-if ($elementDialog.Rows[0].Preview -cne 'План1_К-1') {throw 'Element-view parameter naming regression'}
+if ($elementDialog.Rows[0].Preview -cne 'КЖ3_Арм_Пилон_К-1_План1') {throw 'Element-view parameter naming regression'}
 $events = @('Click','SelectionChanged','TextChanged','PreviewTextInput','KeyDown')
 $count = 0
 foreach ($case in $cases) {
@@ -156,10 +160,46 @@ foreach ($case in $cases) {
     $window.Close()
 }
 
-foreach($dpi in @(96,120,144,192)) {Render-Content $elementDialog 1080 810 $dpi (Join-Path $out ('ElementViews-compiled-'+$dpi+'.png'))}
+foreach($dpi in @(96,120,144,192)) {Render-Content $elementDialog 1000 720 $dpi (Join-Path $out ('ElementViews-compiled-'+$dpi+'.png'))}
+# The public form reader must preserve the actual per-row IDs.
+function Find-VisualCombos($node) {
+ if($node -is [Windows.Controls.ComboBox]) {Write-Output $node}
+ for($child=0;$child -lt [Windows.Media.VisualTreeHelper]::GetChildrenCount($node);$child++) {Find-VisualCombos ([Windows.Media.VisualTreeHelper]::GetChild($node,$child))}
+}
+$combos=@(Find-VisualCombos ($elementDialog.FindName('ViewsGrid')))
+$templateCombo=@($combos | Where-Object {$_.DataContext -eq $elementDialog.Rows[0] -and @($_.ItemsSource | Where-Object {$_.Id -eq 4}).Count -gt 0})[0]
+$viewportCombo=@($combos | Where-Object {$_.DataContext -eq $elementDialog.Rows[0] -and @($_.ItemsSource | Where-Object {$_.Id -eq 22}).Count -gt 0})[0]
+if(-not $templateCombo -or -not $viewportCombo) {throw 'Actual per-row selectors not generated'}
+$templateCombo.SelectedValue=4;$viewportCombo.SelectedValue=22
+$elementDialog.Content.UpdateLayout()
+$built=$elementDialog.BuildOptions()
+if($built.Views[0].TemplateId -ne 4 -or $built.Views[0].ViewportTypeId -ne 22 -or $built.Views[1].TemplateId -ne 2) {throw 'Per-view template/viewport selection lost'}
+$elementDialog.Rows[0].TemplateId=-1;$rejected=$false
+try {$null=$elementDialog.BuildOptions()} catch {$rejected=$true}
+if(-not $rejected){throw 'Enabled view without template must be rejected'}
+$elementDialog.Rows[0].TemplateId=4
+$saved=$elementDialog.CaptureSettings()
+$settingsType=$elementAssembly.GetType('ARV.ElementViews.SettingsFile')
+$settingsPath=Join-Path $out 'element-views-settings.json'
+$saveArgs=New-Object object[] 2;$saveArgs[0]=[string]$settingsPath;$saveArgs[1]=$saved.PSObject.BaseObject
+$settingsType.GetMethod('Save').Invoke($null,$saveArgs)
+$loaded=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$settingsPath))
+$elementDialog.Rows[0].Prefix='changed';$elementDialog.Rows[0].TemplateId=2;$elementDialog.Rows[0].ViewportTypeId=-1
+$elementDialog.ApplySettings($loaded)
+if($elementDialog.Rows[0].Prefix -cne 'КЖ3_Арм_Пилон_' -or $elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.Rows[0].ViewportTypeId -ne 22){throw 'Settings round-trip lost names or selections'}
+$loaded.Rows[0].Template.Id=99999
+$elementDialog.ApplySettings($loaded)
+if($elementDialog.Rows[0].TemplateId -ne 4) {throw 'Saved reference must resolve by name in another project'}
+$badPath=Join-Path $out 'element-views-settings-invalid.json';[IO.File]::WriteAllText($badPath,'not json')
+$badRejected=$false;try{$null=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$badPath))}catch{$badRejected=$true}
+if(-not $badRejected){throw 'Invalid settings file must be rejected'}
+$oldPrefix=$elementDialog.Rows[0].Prefix;$loaded.Rows[0].Template.Name='Missing template';$failed=$false
+try {$elementDialog.ApplySettings($loaded)}catch{$failed=$true}
+if(-not $failed -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Missing saved template must not partially overwrite the form'}
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $elementDialog.FindName('BodyScroll').ScrollToBottom()
-Render-Content $elementDialog 1080 810 96 (Join-Path $out 'ElementViews-sheets-96.png')
+$elementDialog.FindName('SettingsTabs').SelectedIndex=1
+Render-Content $elementDialog 1000 720 96 (Join-Path $out 'ElementViews-sheets-96.png')
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=0
 $elementDialog.GetType().GetMethod('Ok_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@($null,[Windows.RoutedEventArgs]::new()))
 if ($elementDialog.FindName('ValidationMessage').Text -notmatch 'параметр') {throw 'Unique filter without parameter must fail inline'}
@@ -170,6 +210,11 @@ $elementDialog.Close()
 $creation=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.CreationResult'));$creation.Completed=17;$creation.Views=51;$creation.Sheets=17;$creation.Filtered=33
 $elementReport=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ReportWindow'),[object[]]@($creation))
 if ($elementReport.FindName('SkippedGrid').Visibility -ne 'Collapsed' -or $elementReport.FindName('SummaryText').Text -notmatch '51') {throw 'Element-view success summary regression'}
+$elementReport.Close()
+$warning=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.SkippedElement'));$warning.Element='123';$warning.Reason='Виды сохранены за границей листа.'
+$creation.Warnings.Add($warning)
+$elementReport=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ReportWindow'),[object[]]@($creation))
+if ($elementReport.FindName('SkippedGrid').Items.Count -ne 1 -or $elementReport.FindName('SummaryText').Text -notmatch 'Требуют внимания: 1' -or $elementReport.FindName('SummaryText').Text -notmatch 'Обработано: 17') {throw 'Retained set warning report regression'}
 $elementReport.Close()
 # Реальный конструктор и обработчики скомпилированного окна без обращения к документу Revit.
 $type=$assemblies['ViewNumberingPlugin'].GetType('ViewNumberingPlugin.NumberingDialog',$true)

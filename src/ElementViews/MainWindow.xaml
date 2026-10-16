@@ -1,48 +1,49 @@
-﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ARV.ElementViews.MainWindow" Title="ARV — Создать виды элемента" Width="1080" Height="850" MinWidth="440" MinHeight="300" WindowStartupLocation="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ARV.ElementViews.MainWindow" Title="ARV — Создать виды элемента" Width="1000" Height="760" MinWidth="440" MinHeight="300" WindowStartupLocation="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
 <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/ElementViews;component/Common/ArvTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-<Grid Grid.Row="0" Margin="24,24,24,16"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<Grid Grid.Row="0" Margin="24,16,24,12"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 <Image Source="/ElementViews;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
-<StackPanel Grid.Column="1" Margin="12,0,0,0"><TextBlock Text="Создать виды элемента" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/><TextBlock x:Name="ContextText" Text="Настройте виды, названия и листы для выбранных элементов." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/></StackPanel></Grid>
-<ScrollViewer x:Name="BodyScroll" Grid.Row="1" Padding="24,0,24,16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-<Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16"><StackPanel>
-<TextBlock Text="Отбор элементов и значение для названий" Style="{StaticResource Arv.SectionHeading}"/>
-<CheckBox x:Name="UniqueCheckBox" Content="Учитывать только один экземпляр с одинаковым значением параметра" Margin="0,12,0,8" Click="PreviewChanged"/>
-<ComboBox x:Name="ParameterComboBox" Style="{StaticResource Arv.ComboBox}" IsTextSearchEnabled="True" SelectionChanged="ParameterChanged"/>
-<TextBlock x:Name="CountInfo" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,10,0,0"/>
-<TextBlock Text="Выбор экземпляра: минимальная Z, затем минимальный X, затем максимальный Y. Пустые значения не объединяются; для их названий используется номер." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
-</StackPanel></Border>
-<Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16"><StackPanel>
-<TextBlock Text="Виды элемента" Style="{StaticResource Arv.SectionHeading}"/>
-<Grid Margin="0,12,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="130"/></Grid.ColumnDefinitions>
-<StackPanel Margin="0,0,12,0"><TextBlock Text="Тип разреза" Style="{StaticResource Arv.FieldLabel}"/><ComboBox x:Name="SectionTypeComboBox" Style="{StaticResource Arv.ComboBox}"/></StackPanel>
-<StackPanel Grid.Column="1" Margin="0,0,12,0"><TextBlock Text="Масштаб 1:" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="ScaleTextBox" Text="20" Style="{StaticResource Arv.TextBox}"/></StackPanel>
-<StackPanel Grid.Column="2"><TextBlock Text="Отступ, мм" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="PaddingTextBox" Text="100" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="12,0,0,0"><TextBlock Text="Создать виды элемента" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/><TextBlock x:Name="ContextText" Text="Настройте виды, названия и листы для выбранных элементов." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/></StackPanel><StackPanel Grid.Column="2" Margin="12,0,0,0"><StackPanel Orientation="Horizontal"><Button Content="Загрузить…" Style="{StaticResource Arv.Button}" Click="Load_Click"/><Button Content="Сохранить…" Style="{StaticResource Arv.Button}" Margin="8,0,0,0" Click="Save_Click"/></StackPanel><TextBlock x:Name="FileStatusText" Style="{StaticResource Arv.HelpText}" Margin="0,4,0,0"/></StackPanel></Grid>
+<ScrollViewer x:Name="BodyScroll" Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+<Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
+<StackPanel Margin="0,0,12,0"><CheckBox x:Name="UniqueCheckBox" Content="Один экземпляр на заполненное значение параметра" Click="PreviewChanged" Margin="0,0,0,6"/><ComboBox x:Name="ParameterComboBox" Style="{StaticResource Arv.ComboBox}" IsTextSearchEnabled="True" SelectionChanged="ParameterChanged"/></StackPanel>
+<StackPanel Grid.Column="1"><TextBlock Text="Тип разреза" Style="{StaticResource Arv.FieldLabel}"/><ComboBox x:Name="SectionTypeComboBox" Style="{StaticResource Arv.ComboBox}"/></StackPanel></Grid>
+<TextBlock x:Name="CountInfo" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,10"/>
+<TabControl x:Name="SettingsTabs" BorderBrush="{StaticResource Arv.Border}" Background="White"><TabControl.Resources><Style TargetType="TabItem"><Setter Property="Padding" Value="14,6"/><Setter Property="Foreground" Value="{StaticResource Arv.Accent}"/></Style></TabControl.Resources>
+<TabItem Header="Виды"><StackPanel Margin="12">
+<Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Margin="0,0,8,0"><TextBlock Text="Разрезы: в стороны, мм" Style="{StaticResource Arv.FieldLabel}" TextWrapping="Wrap"/><TextBox x:Name="SideTextBox" Text="100" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,8,0"><TextBlock Text="Разрезы: вверх, мм" Style="{StaticResource Arv.FieldLabel}" TextWrapping="Wrap"/><TextBox x:Name="AboveTextBox" Text="100" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="2" Margin="0,0,8,0"><TextBlock Text="Разрезы: вниз, мм" Style="{StaticResource Arv.FieldLabel}" TextWrapping="Wrap"/><TextBox x:Name="BelowTextBox" Text="100" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="3"><TextBlock Text="Планы: все стороны, мм" Style="{StaticResource Arv.FieldLabel}" TextWrapping="Wrap"/><TextBox x:Name="PlanPaddingTextBox" Text="100" Style="{StaticResource Arv.TextBox}"/></StackPanel>
 </Grid>
-<TextBlock Text="Все виды создаются разрезами, в том числе горизонтальные планы. Доступны шаблоны разрезов. Масштаб из шаблона имеет приоритет. Соседние элементы остаются видимыми." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
-<DataGrid x:Name="ViewsGrid" Height="356" Style="{StaticResource Arv.DataGrid}" IsReadOnly="False" RowHeight="44" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+<TextBlock Text="Все виды — разрезы. Шаблон обязателен; масштаб берётся из него. Выберите строку, чтобы настроить её название." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,8"/>
+<DataGrid x:Name="ViewsGrid" Height="260" Style="{StaticResource Arv.DataGrid}" IsReadOnly="False" RowHeight="32" ColumnHeaderHeight="28" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.CellStyle><Style TargetType="DataGridCell"><Setter Property="Padding" Value="3,0"/><Setter Property="BorderThickness" Value="0"/></Style></DataGrid.CellStyle>
 <DataGrid.Columns>
-<DataGridTemplateColumn Header="Создать" Width="66" MinWidth="66"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" HorizontalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTextColumn Header="Вид" Binding="{Binding Label}" Width="90" MinWidth="90" IsReadOnly="True"/>
-<DataGridTemplateColumn Header="От низа, мм" Width="100" MinWidth="100"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding OffsetText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsPlan}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTemplateColumn Header="Префикс" Width="120" MinWidth="120"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTemplateColumn Header="Суффикс" Width="100" MinWidth="100"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTextColumn Header="Пример названия" Binding="{Binding Preview}" Width="*" MinWidth="130" IsReadOnly="True"/>
-<DataGridTemplateColumn Header="Шаблон" Width="190" MinWidth="190"><DataGridTemplateColumn.CellTemplate><DataTemplate><ComboBox Style="{StaticResource Arv.ComboBox}" ItemsSource="{Binding Templates}" SelectedItem="{Binding Template,Mode=TwoWay}" IsTextSearchEnabled="True"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTemplateColumn Header="✓" Width="36" MinWidth="36"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" HorizontalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTextColumn Header="Вид" Binding="{Binding Label}" Width="78" MinWidth="78" IsReadOnly="True"/>
+<DataGridTemplateColumn Header="От низа, мм" Width="95" MinWidth="95"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding OffsetText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsPlan}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTemplateColumn Header="Шаблон вида" Width="*" MinWidth="260"><DataGridTemplateColumn.CellTemplate><DataTemplate><ComboBox Style="{StaticResource Arv.ComboBox}" ItemsSource="{Binding Templates}" SelectedValuePath="Id" SelectedValue="{Binding TemplateId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="False" IsTextSearchEnabled="True"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTemplateColumn Header="Тип видового экрана" Width="*" MinWidth="240"><DataGridTemplateColumn.CellTemplate><DataTemplate><ComboBox Style="{StaticResource Arv.ComboBox}" ItemsSource="{Binding ViewportTypes}" SelectedValuePath="Id" SelectedValue="{Binding ViewportTypeId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsSynchronizedWithCurrentItem="False" IsTextSearchEnabled="True"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
 </DataGrid.Columns></DataGrid>
-<TextBlock Text="Направления — по локальным осям элемента в плане; вертикаль — Z проекта. У элементов без локальных осей используются оси проекта. Совпадающие названия дополняются номером." Style="{StaticResource Arv.HelpText}" Margin="0,10,0,0"/>
-</StackPanel></Border>
-<Border Style="{StaticResource Arv.Card}"><StackPanel>
-<CheckBox x:Name="CreateSheetCheckBox" Content="Создавать лист для каждого обрабатываемого элемента" FontWeight="SemiBold"/>
+<Grid DataContext="{Binding SelectedItem,ElementName=ViewsGrid}" Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Margin="0,0,8,0"><TextBlock Text="Префикс выбранного вида" Style="{StaticResource Arv.FieldLabel}"/><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding Prefix,UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+<StackPanel Grid.Column="1"><TextBlock Text="Суффикс выбранного вида" Style="{StaticResource Arv.FieldLabel}"/><TextBox Style="{StaticResource Arv.TextBox}" Text="{Binding Suffix,UpdateSourceTrigger=PropertyChanged}"/></StackPanel></Grid>
+<TextBlock Text="{Binding SelectedItem.Preview,ElementName=ViewsGrid}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,4,0,0"/>
+</StackPanel></TabItem>
+<TabItem x:Name="SheetsTab" Header="Листы"><StackPanel Margin="16">
+<CheckBox x:Name="CreateSheetCheckBox" Content="Создавать лист для каждого элемента" FontWeight="SemiBold"/>
 <StackPanel x:Name="SheetPanel" IsEnabled="{Binding IsChecked,ElementName=CreateSheetCheckBox}" Margin="0,12,0,0">
 <TextBlock Text="Семейство и тип основной надписи" Style="{StaticResource Arv.FieldLabel}"/><ComboBox x:Name="TitleBlockComboBox" Style="{StaticResource Arv.ComboBox}"/>
 <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
 <StackPanel Margin="0,0,12,0"><TextBlock Text="Префикс названия листа" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetPrefixTextBox" Text="Элемент " Style="{StaticResource Arv.TextBox}" TextChanged="SheetNameChanged"/></StackPanel>
-<StackPanel Grid.Column="1"><TextBlock Text="Суффикс названия листа" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetSuffixTextBox" Style="{StaticResource Arv.TextBox}" TextChanged="SheetNameChanged"/></StackPanel>
-</Grid><TextBlock x:Name="SheetNamePreview" Style="{StaticResource Arv.HelpText}" Margin="0,8,0,0"/>
+<StackPanel Grid.Column="1"><TextBlock Text="Суффикс названия листа" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetSuffixTextBox" Style="{StaticResource Arv.TextBox}" TextChanged="SheetNameChanged"/></StackPanel></Grid>
+<TextBlock x:Name="SheetNamePreview" Style="{StaticResource Arv.HelpText}" Margin="0,8,0,12"/>
+<CheckBox x:Name="TitlesAboveCheckBox" Content="Название каждого вида сверху по центру" IsChecked="True"/>
+<TextBlock Text="Название сверху — отдельный текст на листе. При переносе вида перемещайте его вместе с экраном; при переименовании обновите текст. Чтобы не дублировать заголовок, выберите тип экрана без стандартного названия." Style="{StaticResource Arv.HelpText}" Margin="0,8,0,0"/>
 </StackPanel>
-<TextBlock x:Name="SheetHelp" Text="Номера листов: ARV-0001 и далее, без занятых номеров. Поля: 20 мм, снизу 55 мм. Виды размещаются с учётом размеров и названий. Непоместившийся комплект откатывается целиком." Style="{StaticResource Arv.HelpText}" Margin="0,10,0,0"/>
-</StackPanel></Border>
+<TextBlock x:Name="SheetHelp" Text="Не поместившиеся виды сохраняются и размещаются за правой границей листа. Их можно скомпоновать вручную. Поля: 20 мм, снизу 55 мм; номера ARV-0001 и далее." Style="{StaticResource Arv.HelpText}" Margin="0,16,0,0"/>
+</StackPanel></TabItem></TabControl>
 </StackPanel></ScrollViewer>
 <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16"><StackPanel><TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="OkButton" Content="Создать" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Click="Ok_Click" IsDefault="True"/><Button x:Name="CancelButton" Content="Отмена" Style="{StaticResource Arv.Button}" MinWidth="100" Margin="8,0,0,0" Click="Cancel_Click" IsCancel="True"/></StackPanel></StackPanel></Border>
 </Grid></Window>

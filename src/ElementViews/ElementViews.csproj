@@ -63,6 +63,7 @@
         </Reference>
         <Reference Include="System"/>
         <Reference Include="System.Core"/>
+        <Reference Include="System.Runtime.Serialization"/>
         <Reference Include="System.Xaml"/>
         <Reference Include="System.Xml.Linq"/>
         <Reference Include="System.Data.DataSetExtensions"/>
@@ -75,6 +76,7 @@
     <ItemGroup>
         <Compile Include="Command.cs"/>
         <Compile Include="Models.cs"/>
+        <Compile Include="SettingsFile.cs"/>
         <Compile Include="ElementViewMath.cs"/>
         <Compile Include="CatalogBuilder.cs"/>
         <Compile Include="ViewCreationService.cs"/>

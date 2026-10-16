@@ -41,11 +41,15 @@ namespace ARV.ElementViews
             result.Parameters.AddRange(parameters.Values.OrderBy(p=>p.Name,Algorithms.NameComparer).ThenBy(p=>p.Key));
             result.SectionTypes=new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().Where(t=>t.ViewFamily==ViewFamily.Section)
                 .OrderBy(t=>t.Name,Algorithms.NameComparer).Select(t=>new Choice{Id=t.Id.IntegerValue,Name=t.Name}).ToList();
-            result.Templates.Add(new Choice{Id=-1,Name="Без шаблона"});
+            result.Templates.Add(new Choice{Id=-1,Name="Выберите шаблон"});
             result.Templates.AddRange(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Where(v=>v.IsTemplate && v.ViewType==ViewType.Section)
                 .OrderBy(v=>v.Name,Algorithms.NameComparer).Select(v=>new Choice{Id=v.Id.IntegerValue,Name=v.Name}));
             result.TitleBlocks=new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_TitleBlocks).Cast<FamilySymbol>()
                 .OrderBy(t=>t.FamilyName,Algorithms.NameComparer).ThenBy(t=>t.Name,Algorithms.NameComparer).Select(t=>new Choice{Id=t.Id.IntegerValue,Name=t.FamilyName+": "+t.Name}).ToList();
+            result.ViewportTypes.Add(new Choice{Id=-1,Name="По умолчанию проекта"});
+            result.ViewportTypes.AddRange(new FilteredElementCollector(doc).OfClass(typeof(ElementType)).Cast<ElementType>()
+                .Where(t=>t.get_Parameter(BuiltInParameter.VIEWPORT_ATTR_LABEL_TAG)!=null)
+                .OrderBy(t=>t.Name,Algorithms.NameComparer).Select(t=>new Choice{Id=t.Id.IntegerValue,Name=t.Name}));
             return result;
         }
         private static void ReadParameters(Element e,bool type,ElementData item,Dictionary<string,Choice> choices)
@@ -54,7 +58,7 @@ namespace ARV.ElementViews
             {
                 if(p.StorageType==StorageType.None || p.Definition==null) continue;
                 string key=(type?"T:":"I:")+p.Id.IntegerValue;
-                if(!choices.ContainsKey(key)) choices.Add(key,new Choice{Key=key,Id=p.Id.IntegerValue,Name=p.Definition.Name+(type?" (тип)":" (экземпляр)")+" ["+p.Id.IntegerValue+"]"});
+                if(!choices.ContainsKey(key)) choices.Add(key,new Choice{Key=key,Id=p.Id.IntegerValue,Name=p.Definition.Name+(type?" (тип)":" (экземпляр)")});
                 string text="",group="";
                 if(p.HasValue)
                 {

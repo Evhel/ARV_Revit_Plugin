@@ -38,7 +38,7 @@ namespace ARV.ElementViews
             var ordered=source.OrderBy(e=>e.Z).ThenBy(e=>e.X).ThenByDescending(e=>e.Y).ThenBy(e=>e.Id).ToList();
             if (!unique) return ordered;
             var seen=new HashSet<string>(StringComparer.Ordinal);
-            return ordered.Where(e=>string.IsNullOrWhiteSpace(e.Value) || seen.Add(e.GroupKey??e.Value.Trim())).ToList();
+            return ordered.Where(e=>!string.IsNullOrWhiteSpace(e.Value) && seen.Add(e.GroupKey??e.Value.Trim())).ToList();
         }
         public static string Name(string prefix,string token,string suffix)
         {
@@ -49,7 +49,14 @@ namespace ARV.ElementViews
         }
         public static SectionVolume Volume(IList<Point3> points, Point3 axisX, Point3 axisY, string kind, double offset, double padding)
         {
-            if(points==null || points.Count<2 || padding<=0 || double.IsNaN(padding) || double.IsInfinity(padding)) throw new ArgumentException("Некорректные габариты или отступ.");
+            if(padding<=0) throw new ArgumentException("Некорректный отступ.");
+            return Volume(points,axisX,axisY,kind,offset,padding,padding,padding,padding);
+        }
+        public static SectionVolume Volume(IList<Point3> points, Point3 axisX, Point3 axisY, string kind, double offset, double side, double above, double below, double planPadding)
+        {
+            double padding=kind=="Plan"?planPadding:side;
+            if(new[]{side,above,below,planPadding}.Any(v=>v<0||double.IsNaN(v)||double.IsInfinity(v))) throw new ArgumentException("Некорректные отступы.");
+            if(points==null || points.Count<2 || padding<0 || double.IsNaN(padding) || double.IsInfinity(padding)) throw new ArgumentException("Некорректные габариты или отступ.");
             var z=new Point3(0,0,1);
             Point3 x=new Point3(axisX.X,axisX.Y,0).Unit();
             Point3 y=z.Cross(x); if(y.Dot(axisY)<0) y=y*(-1);
@@ -61,11 +68,26 @@ namespace ARV.ElementViews
             Point3 center=new Point3(points.Average(p=>p.X),points.Average(p=>p.Y),points.Average(p=>p.Z));
             double low=points.Min(p=>p.Z),high=points.Max(p=>p.Z);
             if(plan && (double.IsNaN(offset)||double.IsInfinity(offset)||offset<0||offset>high-low+1e-6)) throw new ArgumentException("Отметка плана находится вне высоты элемента.");
-            Point3 origin=plan ? new Point3(center.X,center.Y,low+offset) : center+direction*(points.Min(p=>(p-center).Dot(direction))-padding);
+            double depth=Math.Max(plan?planPadding:side,1.0/304.8);
+            Point3 origin=plan ? new Point3(center.X,center.Y,low+offset) : center+direction*(points.Min(p=>(p-center).Dot(direction))-depth);
             var local=points.Select(p=>new Point3((p-origin).Dot(right),(p-origin).Dot(up),(p-origin).Dot(direction))).ToList();
             return new SectionVolume { Origin=origin,Right=right,Up=up,Direction=direction,
-                Min=new Point3(local.Min(p=>p.X)-padding,local.Min(p=>p.Y)-padding,0),
-                Max=new Point3(local.Max(p=>p.X)+padding,local.Max(p=>p.Y)+padding,Math.Max(padding,local.Max(p=>p.Z)+padding)) };
+                Min=new Point3(local.Min(p=>p.X)-padding,local.Min(p=>p.Y)-(plan?planPadding:below),0),
+                Max=new Point3(local.Max(p=>p.X)+padding,local.Max(p=>p.Y)+(plan?planPadding:above),Math.Max(depth,local.Max(p=>p.Z)+depth)) };
+        }
+        public static List<PaperRect> PackPreserving(IList<PaperRect> sizes,double width,double height,double gap,double overflowX)
+        {
+            if(width<=0||height<=0||gap<0||overflowX<=width) throw new ArgumentException("Некорректная рабочая область листа.");
+            double x=0,y=0,row=0,outsideY=0;var result=new List<PaperRect>();
+            foreach(var size in sizes)
+            {
+                double nextX=x,nextY=y,nextRow=row;
+                if(nextX>0 && nextX+size.Width>width+1e-8) {nextX=0;nextY+=nextRow+gap;nextRow=0;}
+                if(size.Width>width+1e-8 || nextY+size.Height>height+1e-8)
+                {result.Add(new PaperRect(overflowX,outsideY,size.Width,size.Height));outsideY+=size.Height+gap;continue;}
+                result.Add(new PaperRect(nextX,nextY,size.Width,size.Height));x=nextX+size.Width+gap;y=nextY;row=Math.Max(nextRow,size.Height);
+            }
+            return result;
         }
         public static List<PaperRect> Pack(IList<PaperRect> sizes,double width,double height,double gap)
         {

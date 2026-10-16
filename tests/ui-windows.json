@@ -94,8 +94,8 @@
     "file": "MainWindow.xaml",
     "cls": "ARV.ElementViews.MainWindow",
     "title": "Создать виды элемента",
-    "width": 1080,
-    "height": 850
+    "width": 1000,
+    "height": 760
   },
   {
     "project": "ElementViews",

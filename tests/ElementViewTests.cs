@@ -15,7 +15,7 @@ internal static class ElementViewTests
         var tied=new[]{new ElementCandidate{Id=1,Z=0,X=2,Y=100,Value="A"},new ElementCandidate{Id=2,Z=0,X=1,Y=2,Value="A"},new ElementCandidate{Id=3,Z=0,X=1,Y=3,Value="A"}};
         check(ElementViewMath.Select(tied,true).Single().Id==3,"same elevation: minimum X then maximum Y");
         tied[1].Z=-1;check(ElementViewMath.Select(tied,true).Single().Id==2,"Z has priority over Y");
-        check(ElementViewMath.Select(new[]{new ElementCandidate{Id=1,Value=""},new ElementCandidate{Id=2,Value=" "}},true).Count==2,"missing marks never collapse into one element");
+        check(ElementViewMath.Select(new[]{new ElementCandidate{Id=1,Value=""},new ElementCandidate{Id=2,Value=" "}},true).Count==0,"empty marks excluded when filter is enabled");
         check(ElementViewMath.Select(new[]{new ElementCandidate{Id=1,Value="А"},new ElementCandidate{Id=2,Value="а"}},true).Count==2,"case-sensitive parameter values");
         check(ElementViewMath.Select(new[]{new ElementCandidate{Id=4,Value="A"},new ElementCandidate{Id=3,Value="A"}},true).Single().Id==3,"element ID provides stable tie break");
         check(ElementViewMath.Name("План_","К-1","_АР")=="План_К-1_АР","prefix + parameter value + suffix");
@@ -42,6 +42,19 @@ internal static class ElementViewTests
         check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Plan",7,.1)),"offset above top rejected");
         check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Plan",-1,.1)),"negative offset rejected");
         check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Front",0,0)),"zero crop margin rejected");
+        check(ElementViewMath.Select(new[]{new ElementCandidate{Id=1,Value=""},new ElementCandidate{Id=2,Value="A"}},false).Count==2,"disabled filter retains empty values");
+        var asymmetric=ElementViewMath.Volume(points,axisX,axisY,"Front",0,.2,.3,.4,.8);
+        check(Near(asymmetric.Max.Y-asymmetric.Min.Y,6+.3+.4),"upper and lower section margins independent");
+        check(Near(asymmetric.Max.X-asymmetric.Min.X,2+.4),"side margin applied to both horizontal sides");
+        var planA=ElementViewMath.Volume(points,axisX,axisY,"Plan",2,.2,.3,.4,.8);
+        var planB=ElementViewMath.Volume(points,axisX,axisY,"Plan",2,2,3,4,.8);
+        check(Near(planA.Max.X-planA.Min.X,2+1.6)&&Near(planA.Max.Y-planA.Min.Y,2+1.6),"plan crop uses its own margin on four sides");
+        check(Near(planA.Max.Z,planB.Max.Z)&&Near(planA.Min.X,planB.Min.X)&&Near(planA.Max.Y,planB.Max.Y),"section margins cannot change plan geometry");
+        check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Front",0,.2,-.3,.4,.8)),"negative individual margin rejected");
+        var kept=ElementViewMath.PackPreserving(new[]{new PaperRect(0,0,2,1),new PaperRect(0,0,20,10),new PaperRect(0,0,2,1)},4.2,2.2,.1,5);
+        check(kept.Count==3 && kept[1].X==5 && kept[2].X<4.2,"oversize view kept outside paper without losing later small views");
+        var overflow=ElementViewMath.PackPreserving(new[]{new PaperRect(0,0,2,3),new PaperRect(0,0,2,4)},4.2,1,.1,5);
+        check(overflow.Count==2 && overflow.All(rect=>rect.X==5) && overflow[1].Y>=overflow[0].Y+overflow[0].Height+.09,"all-too-tall views kept outside without overlap");
         var sizes=new[]{new PaperRect(0,0,2,1),new PaperRect(0,0,2,1),new PaperRect(0,0,2,1)};
         var positions=ElementViewMath.Pack(sizes,4.2,2.2,.1);
         check(positions.Count==3 && Near(positions[2].X,0)&&Near(positions[2].Y,1.1),"sheet packing wraps rows with gap");
