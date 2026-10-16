@@ -1,0 +1,77 @@
+<?xml version="1.0" ?>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Arv.OriginRelocator.RelocationWindow" Title="ARV — Перенос проекта в 0,0" Width="700" Height="670" MinWidth="440" MinHeight="300" WindowStartupLocation="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Arv.OriginRelocator;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="24,24,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/Arv.OriginRelocator;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Перенос проекта в 0,0" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Проверьте смещение выбранной точки во внутреннее начало координат." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Смещение модели" Style="{StaticResource Arv.SectionHeading}" Margin="0,0,0,16"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="По X, мм" Style="{StaticResource Arv.HelpText}"/>
+                                <TextBlock x:Name="ShiftXText" FontSize="20" FontWeight="SemiBold" Margin="0,6,8,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="По Y, мм" Style="{StaticResource Arv.HelpText}"/>
+                                <TextBlock x:Name="ShiftYText" FontSize="20" FontWeight="SemiBold" Margin="0,6,8,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="По Z, мм" Style="{StaticResource Arv.HelpText}"/>
+                                <TextBlock Text="0" FontSize="20" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Область переноса" Style="{StaticResource Arv.SectionHeading}" Margin="0,0,0,16"/>
+                        <TextBlock x:Name="ModelCountText" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RootCountText" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="ViewCountText" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="AnnotationCountText" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="{StaticResource Arv.WarningBackground}" BorderBrush="{StaticResource Arv.Border}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
+                    <TextBlock Text="Перенос затронет проект целиком. Высоты сохраняются; закрепление восстанавливается. Связи, оформление листов, чертёжные виды и легенды остаются на месте. Изменения можно отменить одной командой «Отменить»." TextWrapping="Wrap" Foreground="{StaticResource Arv.Warning}"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Перенести" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="OkButton_Click" IsDefault="False"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="CancelButton_Click" IsCancel="True" IsDefault="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -32,9 +32,10 @@ namespace ARV_Ribbon
                 added += Add(app, "Виды", "TightCropPlugin", "AdjustCropToBreakLines.AdjustCropToBreakLinesCommand", "ViewsCut.png", "Обрезать\nвиды", "Подогнать прямоугольную обрезку без изменения глубины", errors);
                 added += Add(app, "Виды", "ViewNumberingPlugin", "ViewNumberingPlugin.Command", "ViewNumber.png", "Нумерация\nвидов", "Нумеровать выбранные видовые экраны по положению на листе", errors);
                 added += Add(app, "Рабочие наборы", "CreateViewsForWorksets", "WorksetViewsPlugin.WorksetViewsCommand", "Worksets.png", "3D виды по\nрабочим наборам", "Создать отдельный 3D-вид для каждого пользовательского рабочего набора", errors);
+                added += Add(app, "Модель", "Arv.OriginRelocator", "Arv.OriginRelocator.MoveToInternalOriginCommand", "OriginToZero.png", "Перенос\nв 0,0", "Перенести выбранную точку проекта во внутренний 0,0 по X и Y", errors);
             }
             catch (Exception ex) { errors.Add(ex.Message); }
-            if (errors.Count > 0) TaskDialog.Show("Панель ARV", $"Создано кнопок: {added} из 11.\n" + string.Join("\n", errors));
+            if (errors.Count > 0) TaskDialog.Show("Панель ARV", $"Создано кнопок: {added} из 12.\n" + string.Join("\n", errors));
             return added == 0 ? Result.Failed : Result.Succeeded;
         }
 

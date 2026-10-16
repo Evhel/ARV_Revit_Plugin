@@ -16,7 +16,7 @@ namespace AdjustCropToBreakLines
             ARV.Common.UiSupport.Initialize(this);
             ContextText.Text = $"Выбрано видов: {viewsCount}. Задайте отступ и источники границ.";
             new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             Title = "ARV — Обрезать виды";
         }
         private void Window_KeyDown(object sender, KeyEventArgs e)

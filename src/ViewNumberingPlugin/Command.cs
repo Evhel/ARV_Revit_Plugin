@@ -33,7 +33,7 @@ namespace ViewNumberingPlugin
                 }
                 var dialog = new NumberingDialog();
                 new System.Windows.Interop.WindowInteropHelper(dialog) { Owner = data.Application.MainWindowHandle };
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                dialog.WindowStartupLocation = WindowStartupLocation.Manual;
                 if (dialog.ShowDialog() != true) return Result.Cancelled;
                 var changes = new List<Tuple<Viewport, string>>();
                 foreach (var sheetGroup in selected.GroupBy(v => v.SheetId.IntegerValue))

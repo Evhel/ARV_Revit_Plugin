@@ -17,7 +17,7 @@ namespace HideCategory
             InitializeComponent();
             ARV.Common.UiSupport.Initialize(this);
             new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             categories = app.ActiveUIDocument.Document.Settings.Categories.Cast<Category>()
                 .Where(c => c.SubCategories != null && c.SubCategories.Size > 0)
                 .OrderBy(c => c.Name, Algorithms.NameComparer).ToList();

@@ -1,0 +1,31 @@
+{
+  "StandaloneVersion": "1.0.20",
+  "SuiteVersion": "1.3.0",
+  "SourceFolder": "D:\\Prog\\Codex\\current-work\\revit-origin-relocator",
+  "UnchangedCoreFiles": [
+    {
+      "File": "RelocationPlan.cs",
+      "SHA256": "822d7095700d9135e3e807fdc912d206226d40e795655f6363e8826cf9ec8c5e"
+    },
+    {
+      "File": "RelocationEngine.cs",
+      "SHA256": "167a8c3fea6dc7020ab93c525a144fa9d776211ecc818a71fa8f7269bd9fdaf2"
+    },
+    {
+      "File": "ElementState.cs",
+      "SHA256": "70c36bb300812259176ce8536797d93f538bfef2f9741f17139d19c7caafa409"
+    },
+    {
+      "File": "PresentationState.cs",
+      "SHA256": "9d569371e2f6008be4e298e6c6c9bac0cfc9120377a4aed858b5bc145ca1ef6e"
+    }
+  ],
+  "CommandChanges": "WPF confirmation, current Revit owner; report and model execution logic retained",
+  "ExcludedFromProduction": [
+    "SelfTestCommand",
+    "DiagnosticsCommand",
+    "SectionProbeCommand",
+    "SectionOrderProbeCommand",
+    "GroupProbeCommand"
+  ]
+}

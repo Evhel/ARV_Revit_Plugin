@@ -94,6 +94,8 @@
     <Content Include="Images\ViewsCut.png" />
     <Content Include="Images\ViewsToSheets.png" />
     <Content Include="Images\Worksets.png" />
+    <Content Include="Images\OriginToZero.png" />
+    <None Include="Images\OriginToZero.svg" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>

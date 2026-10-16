@@ -70,5 +70,14 @@
     "title": "Нумерация видов",
     "width": 540,
     "height": 480
+  },
+  {
+    "project": "OriginRelocator",
+    "file": "RelocationWindow.xaml",
+    "cls": "Arv.OriginRelocator.RelocationWindow",
+    "title": "Перенос проекта в 0,0",
+    "width": 700,
+    "height": 670,
+    "defaultAction": false
   }
 ]

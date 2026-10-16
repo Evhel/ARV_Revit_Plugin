@@ -33,7 +33,7 @@ namespace WallStartSchedule
             InitializeComboBoxes();
 
             // Центрируем окно относительно Revit
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
         }
 
         private void LoadWallTypes()

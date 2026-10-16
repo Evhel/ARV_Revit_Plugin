@@ -25,7 +25,7 @@ namespace FinishingSchedulePlugin
             helper.Owner = uiDoc.Application.MainWindowHandle;
 
             // Центрируем окно на экране где находится Revit
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
 
             PopulateComboBoxes(uiDoc.Document);
         }

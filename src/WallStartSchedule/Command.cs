@@ -18,7 +18,7 @@ namespace WallStartSchedule
 
                 var mainWindow = new MainWindow(doc);
                 new System.Windows.Interop.WindowInteropHelper(mainWindow) { Owner = commandData.Application.MainWindowHandle };
-                mainWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
                 bool? dialogResult = mainWindow.ShowDialog();
                 if (dialogResult != true) return Result.Cancelled;
 

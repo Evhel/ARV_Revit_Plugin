@@ -78,8 +78,15 @@ foreach ($case in $cases) {
         $views.ItemsSource=$table.DefaultView
     }
     if ($window.FindName('_cmbType')) {$window.FindName('_cmbType').SelectedIndex=0}
+    if ($case.project -eq 'OriginRelocator') {
+        $window.FindName('ShiftXText').Text='165 000,0';$window.FindName('ShiftYText').Text='−2 500,0'
+        $window.FindName('ModelCountText').Text='Элементов модели: 120'
+        $window.FindName('RootCountText').Text='Самостоятельных объектов: 80'
+        $window.FindName('ViewCountText').Text='Видов модели: 15'
+        $window.FindName('AnnotationCountText').Text='Элементов оформления в видах на листах: 30'
+    }
     $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton')
-    if (-not $ok.IsDefault -or -not $cancel.IsCancel) {throw 'Keyboard defaults missing'}
+    if (-not $cancel.IsCancel -or ($case.defaultAction -ne $false -and -not $ok.IsDefault) -or ($case.defaultAction -eq $false -and ($ok.IsDefault -or -not $cancel.IsDefault))) {throw 'Keyboard defaults missing'}
     if ($ok.Background.Color.ToString() -ne '#FF57007F') {throw ('Primary color mismatch: '+$case.project)}
     foreach ($dpi in @(96,120,144,192)) {
         Render-Content $window $case.width ($case.height-40) $dpi (Join-Path $out ($case.project+'-'+$dpi+'.png'))
@@ -129,4 +136,8 @@ $placeArgs = New-Object object[] 2; $placeArgs[0] = $viewsList; $placeArgs[1] = 
 $placeType.GetMethod('OkButton_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($place,@($null,[Windows.RoutedEventArgs]::new()))
 if ($place.FindName('ValidationMessage').Visibility -ne 'Visible') {throw 'Missing sheet validation regression'}
 $place.Close()
-"PASS: 9 production layouts, event handlers, primary color, Enter/Escape; $count DPI renders (100/125/150/200%); 9 compact/error layouts; compiled numbering/copy/placement constructors and inline validation. Revit not launched."
+$relocationType = $assemblies['OriginRelocator'].GetType('Arv.OriginRelocator.RelocationWindow')
+$relocation = [Activator]::CreateInstance($relocationType,[object[]]@([double]165000,[double]-2500,[int]120,[int]80,[int]15,[int]30))
+if ($relocation.FindName('ShiftXText').Text -notmatch '165' -or $relocation.FindName('ViewCountText').Text -notmatch '15') {throw 'Relocation summary regression'}
+$relocation.Close()
+"PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation UI checks. Revit not launched."

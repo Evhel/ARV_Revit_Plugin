@@ -25,7 +25,7 @@ namespace CopyViewsWithRename
                 }
                 var window = new CopyViewsWindow(views);
                 new System.Windows.Interop.WindowInteropHelper(window) { Owner = data.Application.MainWindowHandle };
-                window.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+                window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
                 if (window.ShowDialog() != true) return Result.Cancelled;
                 var names = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Select(v => v.Name), StringComparer.OrdinalIgnoreCase);
                 var errors = new List<string>();

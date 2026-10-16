@@ -35,7 +35,7 @@ namespace PlaceViewsOnSheet
                 }
                 var window = new MainWindow(views, sheets);
                 new System.Windows.Interop.WindowInteropHelper(window) { Owner = data.Application.MainWindowHandle };
-                window.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+                window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
                 if (window.ShowDialog() != true) return Result.Cancelled;
                 var sheet = window.SelectedSheet;
                 var errors = new List<string>();

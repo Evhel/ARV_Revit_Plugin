@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ViewNumberingPlugin", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WallStartSchedule", "src\WallStartSchedule\WallStartSchedule.csproj", "{4C98139A-EEC8-462C-BCED-100C10549615}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OriginRelocator", "src\OriginRelocator\OriginRelocator.csproj", "{495506A9-C2A9-43D1-9464-E94B429B9A3A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,5 +82,9 @@ Global
 		{4C98139A-EEC8-462C-BCED-100C10549615}.Debug|Any CPU.Build.0 = Debug|AnyCPU
 		{4C98139A-EEC8-462C-BCED-100C10549615}.Release|Any CPU.ActiveCfg = Release|AnyCPU
 		{4C98139A-EEC8-462C-BCED-100C10549615}.Release|Any CPU.Build.0 = Release|AnyCPU
+		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Release|Any CPU.Build.0 = Release|AnyCPU
 	EndGlobalSection
 EndGlobal

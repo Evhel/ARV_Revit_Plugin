@@ -20,7 +20,7 @@ namespace CreateBlankSheetsPlugin
             InitializeComponent();
             ARV.Common.UiSupport.Initialize(this);
             new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             titleBlocks = types;
             TitleBlockComboBox.ItemsSource = types.Select(t => t.FamilyName + ": " + t.Name).ToList();
             TitleBlockComboBox.SelectedIndex = 0;
