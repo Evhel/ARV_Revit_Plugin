@@ -12,6 +12,8 @@
     <Compile Include="..\src\AreaReinforcementHosts\HostMatchingMath.cs"><Link>AreaHosts\HostMatchingMath.cs</Link></Compile>
     <Compile Include="AreaHostMathTests.cs"/>
     <Compile Include="ElementViewTests.cs"/>
+    <Compile Include="SheetFormatApiDoubles.cs"/>
+    <Compile Include="..\src\ElementViews\SheetFormatParameters.cs"><Link>ElementViews\SheetFormatParameters.cs</Link></Compile>
     <Compile Include="..\src\ElementViews\ElementViewMath.cs"><Link>ElementViews\ElementViewMath.cs</Link></Compile>
     <Compile Include="..\src\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
   </ItemGroup>

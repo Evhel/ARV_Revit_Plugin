@@ -191,8 +191,15 @@ $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $elementDialog.FindName('UseLayoutCheckBox').IsChecked=$true
 $layoutGrid=$elementDialog.FindName('LayoutGrid')
 $layoutGrid.Children[0].Text='7';$layoutGrid.Children[1].Text='4';$layoutGrid.Children[2].Text='1'
+$sideCell=@($textCells | Where-Object {$_.DataContext -eq $elementDialog.Rows[0] -and $_.GetBindingExpression([Windows.Controls.TextBox]::TextProperty).ParentBinding.Path.Path -eq 'SideText'})[0]
+if(-not $sideCell){throw 'Actual per-view crop cell not generated'}
+$sideCell.Text='50';$elementDialog.Rows[0].AboveText='60';$elementDialog.Rows[0].BelowText='70'
+$elementDialog.Rows[3].SideText='300';$elementDialog.Rows[3].AboveText='400';$elementDialog.Rows[3].BelowText='500'
+$elementDialog.FindName('FormatATextBox').Text='2';$elementDialog.FindName('FormatXTextBox').Text='3'
 $elementDialog.FindName('SheetLeftTextBox').Text='25';$elementDialog.FindName('SheetTopTextBox').Text='30';$elementDialog.FindName('SheetGapTextBox').Text='12'
 $built=$elementDialog.BuildOptions()
+if($built.Views[0].SideMm -ne 50 -or $built.Views[0].AboveMm -ne 60 -or $built.Views[0].BelowMm -ne 70 -or $built.Views[1].SideMm -ne 300 -or $built.Views[1].BelowMm -ne 500){throw 'Independent view margins lost'}
+if($built.FormatA -cne '2' -or $built.FormatX -cne '3'){throw 'Sheet format not passed to command'}
 if($built.SheetLeftMm -ne 25 -or $built.SheetTopMm -ne 30 -or $built.SheetGapMm -ne 12){throw 'Sheet margins or gap not transferred to options'}
 if($built.LayoutCells[0] -ne 7 -or $built.Views[0].TitleSuffix -cne 'Разрез' -or $built.Views[0].Number -ne 1) {throw 'Grid layout or sheet title lost in options'}
 $layoutGrid.Children[1].Text='7';$duplicateRejected=$false
@@ -208,10 +215,13 @@ $loaded=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$settin
 $elementDialog.Rows[0].Prefix='changed';$elementDialog.Rows[0].TemplateId=2;$elementDialog.Rows[0].ViewportTypeId=-1
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].Prefix -cne 'КЖ3_Арм_Пилон_' -or $elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.Rows[0].ViewportTypeId -ne 22){throw 'Settings round-trip lost names or selections'}
+if($loaded.Rows[0].Side -cne '50' -or $loaded.Rows[3].Below -cne '500' -or $loaded.FormatA -cne '2' -or $loaded.FormatX -cne '3'){throw 'Per-row margins/format JSON round-trip lost'}
 if($loaded.SheetLeft -cne '25' -or $loaded.SheetTop -cne '30' -or $loaded.SheetGap -cne '12'){throw 'Sheet margin/gap JSON round-trip lost'}
 if($loaded.LayoutCells[0] -ne 7 -or $loaded.Rows[0].TitleSuffix -cne 'Разрез' -or -not $loaded.UseLayout){throw 'Grid/title settings round-trip lost'}
 $legacy=$elementDialog.CaptureSettings();$legacy.Version=1;$legacy.UseLayout=$false;$legacy.LayoutCells=$null
+$legacy.Side='110';$legacy.Above='120';$legacy.Below='130';$legacy.PlanPadding='140'
 $elementDialog.ApplySettings($legacy)
+if($elementDialog.Rows[0].SideText -cne '140' -or $elementDialog.Rows[0].AboveText -cne '140' -or $elementDialog.Rows[3].SideText -cne '110' -or $elementDialog.Rows[3].BelowText -cne '130'){throw 'Old global margins must migrate to all corresponding rows'}
 if($elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.FindName('SheetLeftTextBox').Text -cne '20' -or $elementDialog.FindName('SheetGapTextBox').Text -cne '10'){throw 'Legacy settings must remain loadable with default sheet margins/gap'}
 $elementDialog.ApplySettings($loaded)
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=-1;$elementDialog.FindName('ParameterComboBox').Text='Марка'
@@ -224,6 +234,13 @@ $elementDialog.FindName('UniqueCheckBox').IsChecked=$true
 $invalidLayout=$elementDialog.CaptureSettings();$invalidLayout.LayoutCells[1]=7;$invalidLayout.Rows[0].Prefix='must not apply';$oldPrefix=$elementDialog.Rows[0].Prefix;$invalidRejected=$false
 try{$elementDialog.ApplySettings($invalidLayout)}catch{$invalidRejected=$true}
 if(-not $invalidRejected -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Invalid saved grid partially overwrote settings'}
+$elementDialog.Rows[0].SideText='-1';$badMargin=$false
+try{$null=$elementDialog.BuildOptions()}catch{$badMargin=$true}
+if(-not $badMargin){throw 'Invalid row margin accepted'}
+$elementDialog.Rows[0].SideText='50'
+$invalidRow=$elementDialog.CaptureSettings();$invalidRow.Rows[0].Above='-1';$oldRow=$elementDialog.Rows[0].AboveText;$badMargin=$false
+try{$elementDialog.ApplySettings($invalidRow)}catch{$badMargin=$true}
+if(-not $badMargin -or $elementDialog.Rows[0].AboveText -cne $oldRow){throw 'Invalid saved row margin partially applied'}
 $invalidMargins=$elementDialog.CaptureSettings();$invalidMargins.SheetGap='-1';$oldGap=$elementDialog.FindName('SheetGapTextBox').Text;$invalidRejected=$false
 try{$elementDialog.ApplySettings($invalidMargins)}catch{$invalidRejected=$true}
 if(-not $invalidRejected -or $elementDialog.FindName('SheetGapTextBox').Text -cne $oldGap){throw 'Invalid saved sheet gap partially overwrote settings'}

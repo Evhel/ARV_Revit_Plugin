@@ -41,7 +41,7 @@ namespace ARV.ElementViews
     }
     public sealed class ViewRow : INotifyPropertyChanged
     {
-        private string prefix,suffix,token,offset,titleSuffix;
+        private string prefix,suffix,token,offset,titleSuffix,side="100",above="100",below="100";
         private int templateId=-1,viewportTypeId=-1;
         private bool enabled;
         public int Number {get;set;}
@@ -53,6 +53,9 @@ namespace ARV.ElementViews
         public string Suffix {get=>suffix;set{suffix=value;Changed();}}
         public string TitleSuffix {get=>titleSuffix;set{titleSuffix=value;Changed();}}
         public string Token {get=>token;set{token=value;Changed();}}
+        public string SideText {get=>side;set{side=value;Changed();}}
+        public string AboveText {get=>above;set{above=value;Changed();}}
+        public string BelowText {get=>below;set{below=value;Changed();}}
         public string OffsetText {get=>offset;set{offset=value;Changed();}}
         public List<Choice> Templates {get;set;}
         public List<Choice> ViewportTypes {get;set;}
@@ -66,17 +69,16 @@ namespace ARV.ElementViews
     {
         public string Kind,Label,Prefix,Suffix,TitleSuffix;
         public int Number;
-        public double OffsetMm;
+        public double OffsetMm,SideMm,AboveMm,BelowMm;
         public int TemplateId,ViewportTypeId;
     }
     public sealed class Options
     {
-        public string ParameterKey,SheetPrefix,SheetSuffix;
+        public string ParameterKey,SheetPrefix,SheetSuffix,FormatA,FormatX;
         public bool Unique,CreateSheet,UseLayout;
         public int LayoutRows=2,LayoutColumns=3;
         public int[] LayoutCells;
         public int SectionTypeId,TitleBlockId;
-        public double SideMm,AboveMm,BelowMm,PlanPaddingMm;
         public double SheetLeftMm=20,SheetTopMm=20,SheetGapMm=10;
         public List<ViewRequest> Views=new List<ViewRequest>();
     }

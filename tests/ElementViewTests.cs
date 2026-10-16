@@ -51,6 +51,13 @@ internal static class ElementViewTests
         check(Near(planA.Max.X-planA.Min.X,2+1.6)&&Near(planA.Max.Y-planA.Min.Y,2+1.6),"plan crop uses its own margin on four sides");
         check(Near(planA.Max.Z,planB.Max.Z)&&Near(planA.Min.X,planB.Min.X)&&Near(planA.Max.Y,planB.Max.Y),"section margins cannot change plan geometry");
         check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Front",0,.2,-.3,.4,.8)),"negative individual margin rejected");
+        var rowPlan=ElementViewMath.Volume(points,axisX,axisY,"Plan",2,.2,.3,.4);
+        check(Near(rowPlan.Max.X-rowPlan.Min.X,2+.4)&&Near(rowPlan.Max.Y-rowPlan.Min.Y,2+.3+.4),"plan uses its individual side upper and lower crop margins");
+        var rowSection=ElementViewMath.Volume(points,axisX,axisY,"Front",0,.5,.6,.7);
+        check(Near(rowSection.Max.X-rowSection.Min.X,2+1)&&Near(rowSection.Max.Y-rowSection.Min.Y,6+1.3),"section uses separate per-view crop margins");
+        check(Throws(()=>ElementViewMath.Volume(points,axisX,axisY,"Plan",2,.2,-.3,.4)),"negative individual plan margin rejected");
+        var zeroRow=ElementViewMath.Volume(points,axisX,axisY,"Plan",2,0,0,0);
+        check(Near(zeroRow.Max.X-zeroRow.Min.X,2)&&Near(zeroRow.Max.Y-zeroRow.Min.Y,2),"zero margins supported per plan row");
         var kept=ElementViewMath.PackPreserving(new[]{new PaperRect(0,0,2,1),new PaperRect(0,0,20,10),new PaperRect(0,0,2,1)},4.2,2.2,.1,5);
         check(kept.Count==3 && kept[1].X==5 && kept[2].X<4.2,"oversize view kept outside paper without losing later small views");
         var overflow=ElementViewMath.PackPreserving(new[]{new PaperRect(0,0,2,3),new PaperRect(0,0,2,4)},4.2,1,.1,5);

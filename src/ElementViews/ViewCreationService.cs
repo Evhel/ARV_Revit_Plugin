@@ -38,7 +38,7 @@ namespace ARV.ElementViews
                             var created=new List<ViewSection>();
                             foreach(var request in options.Views)
                             {
-                                var volume=ElementViewMath.Volume(element.Corners,element.AxisX,element.AxisY,request.Kind,request.OffsetMm/304.8,options.SideMm/304.8,options.AboveMm/304.8,options.BelowMm/304.8,options.PlanPaddingMm/304.8);
+                                var volume=ElementViewMath.Volume(element.Corners,element.AxisX,element.AxisY,request.Kind,request.OffsetMm/304.8,request.SideMm/304.8,request.AboveMm/304.8,request.BelowMm/304.8);
                                 var transform=Transform.Identity;
                                 transform.Origin=CatalogBuilder.Point(volume.Origin);transform.BasisX=CatalogBuilder.Point(volume.Right);
                                 transform.BasisY=CatalogBuilder.Point(volume.Up);transform.BasisZ=CatalogBuilder.Point(volume.Direction);
@@ -81,7 +81,11 @@ namespace ARV.ElementViews
                                         var symbol=doc.GetElement(new ElementId(options.TitleBlockId)) as FamilySymbol;
                                         if(symbol==null) throw new InvalidOperationException("Не найден тип основной надписи.");
                                         if(!symbol.IsActive) {symbol.Activate();doc.Regenerate();}
-                                        sheet=ViewSheet.Create(doc,symbol.Id);
+                                        sheet=ViewSheet.Create(doc,symbol.Id);doc.Regenerate();
+                                        var blocks=new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_TitleBlocks)
+                                            .WhereElementIsNotElementType().Where(e=>e.OwnerViewId==sheet.Id).ToList();
+                                        SheetFormatParameters.Apply(sheet,blocks,options.FormatA,options.FormatX);
+                                        doc.Regenerate();
                                         sheet.Name=ElementViewMath.Name(options.SheetPrefix,token,options.SheetSuffix);
                                         int number=1;
                                         do {sheetNumber="ARV-"+number.ToString("D4",CultureInfo.InvariantCulture);number++;} while(numbers.Contains(sheetNumber));

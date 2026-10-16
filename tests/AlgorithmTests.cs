@@ -28,6 +28,7 @@ public static class AlgorithmTests
         Check(Algorithms.NameComparer.Compare("Вид", "вид") == 0, "case insensitive view order");
         AreaHostMathTests.Run(Check);
         ElementViewTests.Run(Check);
+        SheetFormatRegression.Run(Check);
         Console.WriteLine("PASS: " + count + " algorithm regression checks");
         return 0;
     }

@@ -52,6 +52,16 @@ namespace ARV.ElementViews
             if(padding<=0) throw new ArgumentException("Некорректный отступ.");
             return Volume(points,axisX,axisY,kind,offset,padding,padding,padding,padding);
         }
+        public static SectionVolume Volume(IList<Point3> points,Point3 axisX,Point3 axisY,string kind,double offset,double side,double above,double below)
+        {
+            var volume=Volume(points,axisX,axisY,kind,offset,side,above,below,side);
+            if(kind=="Plan")
+            {
+                volume.Min=new Point3(volume.Min.X,volume.Min.Y+side-below,volume.Min.Z);
+                volume.Max=new Point3(volume.Max.X,volume.Max.Y+above-side,volume.Max.Z);
+            }
+            return volume;
+        }
         public static SectionVolume Volume(IList<Point3> points, Point3 axisX, Point3 axisY, string kind, double offset, double side, double above, double below, double planPadding)
         {
             double padding=kind=="Plan"?planPadding:side;
