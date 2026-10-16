@@ -109,3 +109,8 @@
 ## Иконка переноса проекта
 
 Для команды «Перенос в 0,0» добавлены [SVG](../../src/ARV_Ribbon/Images/OriginToZero.svg) и [PNG](../../src/ARV_Ribbon/Images/OriginToZero.png). Символ — модель со стрелкой к координатным осям, без звёздочки создания. [Проверка на трёх фонах](ORIGIN_ICON_REFERENCE.png). Повторный экспорт из SVG выполняется через export-path-icon.ps1 в этой папке.
+
+
+## Иконки смены основ армирования
+
+Пара RehostArea.svg/png и RehostAreasFloor.svg/png использует сетку армирования, стену и стрелку. Добавленные контуры отличают массовую команду. [Проверка на трёх фонах](AREA_HOST_ICONS.png). PNG 32×32 экспортируются тем же export-path-icon.ps1 из сохранённых SVG.

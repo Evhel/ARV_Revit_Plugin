@@ -96,6 +96,8 @@
     <Content Include="Images\Worksets.png" />
     <Content Include="Images\OriginToZero.png" />
     <None Include="Images\OriginToZero.svg" />
+    <Content Include="Images\RehostArea.png"/><Content Include="Images\RehostAreasFloor.png"/>
+    <None Include="Images\RehostArea.svg"/><None Include="Images\RehostAreasFloor.svg"/>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>

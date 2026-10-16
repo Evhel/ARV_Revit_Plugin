@@ -79,5 +79,14 @@
     "width": 700,
     "height": 670,
     "defaultAction": false
+  },
+  {
+    "project": "AreaReinforcementHosts",
+    "file": "ReportWindow.xaml",
+    "cls": "ARV.AreaReinforcementHosts.ReportWindow",
+    "title": "Основы армирования",
+    "width": 940,
+    "height": 620,
+    "report": true
   }
 ]

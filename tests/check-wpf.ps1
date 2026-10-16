@@ -27,6 +27,9 @@ function Render-Content($window, $width, $height, $dpi, $path) {
     $content.Arrange([Windows.Rect]::new(0,0,$width,$height))
     $content.UpdateLayout()
     $content.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    $content.Measure([Windows.Size]::new($width,$height))
+    $content.Arrange([Windows.Rect]::new(0,0,$width,$height))
+    $content.UpdateLayout()
     $scale = $dpi / 96.0
     $bitmap = [Windows.Media.Imaging.RenderTargetBitmap]::new([int]($width*$scale),[int]($height*$scale),$dpi,$dpi,[Windows.Media.PixelFormats]::Pbgra32)
     # Window фон не рисуется без HWND; фон содержимого задаём тем же ресурсом.
@@ -85,7 +88,14 @@ foreach ($case in $cases) {
         $window.FindName('ViewCountText').Text='Видов модели: 15'
         $window.FindName('AnnotationCountText').Text='Элементов оформления в видах на листах: 30'
     }
-    $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton')
+    if ($case.project -eq 'AreaReinforcementHosts') {
+        $table=[Data.DataTable]::new();foreach($column in @('OldId','NewId','HostId','Status','Detail')) {[void]$table.Columns.Add($column)}
+        [void]$table.Rows.Add('10501','20901','20001','Изменено','Контур и настройки сохранены; верх контура выше стены.')
+        [void]$table.Rows.Add('10502','—','—','Пропущено','Под нижней границей найдены несколько стен; исходное армирование сохранено.')
+        $window.FindName('ResultsGrid').ItemsSource=$table.DefaultView
+        $window.FindName('SummaryText').Text='Изменено: 1. Пропущено: 1.'
+    }
+    $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton'); if ($case.report) {$cancel=$ok}
     if (-not $cancel.IsCancel -or ($case.defaultAction -ne $false -and -not $ok.IsDefault) -or ($case.defaultAction -eq $false -and ($ok.IsDefault -or -not $cancel.IsDefault))) {throw 'Keyboard defaults missing'}
     if ($ok.Background.Color.ToString() -ne '#FF57007F') {throw ('Primary color mismatch: '+$case.project)}
     foreach ($dpi in @(96,120,144,192)) {
@@ -140,4 +150,14 @@ $relocationType = $assemblies['OriginRelocator'].GetType('Arv.OriginRelocator.Re
 $relocation = [Activator]::CreateInstance($relocationType,[object[]]@([double]165000,[double]-2500,[int]120,[int]80,[int]15,[int]30))
 if ($relocation.FindName('ShiftXText').Text -notmatch '165' -or $relocation.FindName('ViewCountText').Text -notmatch '15') {throw 'Relocation summary regression'}
 $relocation.Close()
+$reportAssembly=$assemblies['AreaReinforcementHosts']
+$resultType=$reportAssembly.GetType('ARV.AreaReinforcementHosts.RehostResult')
+$listType=[Collections.Generic.List``1].MakeGenericType($resultType)
+$list=[Activator]::CreateInstance($listType)
+$result=[Activator]::CreateInstance($resultType);$result.Status='Изменено';$result.OldId='1';$result.NewId='2';$result.HostId='3';$result.Detail='Проверка отчёта без Revit'
+$list.Add($result)
+$reportArgs=New-Object object[] 2;$reportArgs[0]=$list;$reportArgs[1]='Проверка окна отчёта'
+$report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
+if ($report.FindName('SummaryText').Text -notmatch '1' -or $report.FindName('ResultsGrid').Items.Count -ne 1) {throw 'Area-host report regression'}
+$report.Close()
 "PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation UI checks. Revit not launched."

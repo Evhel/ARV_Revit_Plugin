@@ -28,6 +28,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WallStartSchedule", "src\Wa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OriginRelocator", "src\OriginRelocator\OriginRelocator.csproj", "{495506A9-C2A9-43D1-9464-E94B429B9A3A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AreaReinforcementHosts", "src\AreaReinforcementHosts\AreaReinforcementHosts.csproj", "{37AB2A1B-884E-444F-B07F-C20B7E7595A0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,5 +88,9 @@ Global
 		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Debug|Any CPU.Build.0 = Debug|AnyCPU
 		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Release|Any CPU.ActiveCfg = Release|AnyCPU
 		{495506A9-C2A9-43D1-9464-E94B429B9A3A}.Release|Any CPU.Build.0 = Release|AnyCPU
+		{37AB2A1B-884E-444F-B07F-C20B7E7595A0}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+		{37AB2A1B-884E-444F-B07F-C20B7E7595A0}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+		{37AB2A1B-884E-444F-B07F-C20B7E7595A0}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+		{37AB2A1B-884E-444F-B07F-C20B7E7595A0}.Release|Any CPU.Build.0 = Release|AnyCPU
 	EndGlobalSection
 EndGlobal
