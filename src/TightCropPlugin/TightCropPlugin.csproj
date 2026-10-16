@@ -93,5 +93,10 @@
     <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
     <Compile Include="..\Common\RevitSupport.cs"><Link>Common\RevitSupport.cs</Link></Compile>
   </ItemGroup>
+  <ItemGroup>
+    <Page Include="..\Common\ArvTheme.xaml"><Link>Common\ArvTheme.xaml</Link><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Compile Include="..\Common\UiSupport.cs"><Link>Common\UiSupport.cs</Link></Compile>
+    <Resource Include="..\ARV_Ribbon\Images\ViewsCut.png"><Link>Common\Command.png</Link></Resource>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,38 +1,56 @@
-﻿<Window x:Class="FinishingSchedulePlugin.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ведомость чистовой отделки" Height="320" Width="420"
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
-    <Grid Margin="20">
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="FinishingSchedulePlugin.MainWindow" Title="ARV — Чистовая отделка" Width="540" Height="500" MinWidth="440" MinHeight="300" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FinishingSchedulePlugin;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="15"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="15"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="15"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="Коэффициент запаса (0-100):" FontWeight="Bold"/>
-            <TextBox x:Name="txtFactor" Margin="0,8,0,0" VerticalContentAlignment="Center" Height="25"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="2">
-            <TextBlock Text="Группа модели для Стен:" FontWeight="Bold"/>
-            <ComboBox x:Name="cmbWalls" Margin="0,8,0,0" Height="25"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="4">
-            <TextBlock Text="Группа модели для Потолков:" FontWeight="Bold"/>
-            <ComboBox x:Name="cmbCeilings" Margin="0,8,0,0" Height="25"/>
-        </StackPanel>
-
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="OK" Width="90" Height="30" Margin="0,0,15,0" Click="BtnOk_Click"/>
-            <Button Content="Отмена" Width="90" Height="30" Click="BtnCancel_Click"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="24,24,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/FinishingSchedulePlugin;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Чистовая отделка" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Задайте коэффициент и группы модели." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Коэффициент запаса, % (0–100)" Target="{Binding ElementName=txtFactor}" Style="{StaticResource Arv.InputLabel}"/>
+                            <TextBox x:Name="txtFactor"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Группа модели для стен" Target="{Binding ElementName=cmbWalls}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="cmbWalls"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Группа модели для потолков" Target="{Binding ElementName=cmbCeilings}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="cmbCeilings"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Рассчитать" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="BtnOk_Click" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="BtnCancel_Click" IsCancel="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

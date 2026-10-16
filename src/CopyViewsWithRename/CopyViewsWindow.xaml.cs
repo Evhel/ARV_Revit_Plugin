@@ -21,6 +21,8 @@ namespace CopyViewsWithRename
         public CopyViewsWindow(List<View> selectedViews)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
+            ContextText.Text = $"Выбрано видов: {selectedViews.Count}. Будут обработаны все виды из списка.";
             _selectedViews = selectedViews;
             ViewsListBox.ItemsSource = selectedViews;
             CopiesCount = 1;
@@ -119,8 +121,7 @@ namespace CopyViewsWithRename
             // Проверка количества копий
             if (!int.TryParse(CopiesTextBox.Text, out int copies) || copies <= 0 || copies > 100)
             {
-                MessageBox.Show("Введите корректное количество копий (от 1 до 100)", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, CopiesTextBox, "Введите количество копий от 1 до 100.");
                 return;
             }
 

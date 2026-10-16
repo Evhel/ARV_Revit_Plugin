@@ -1,83 +1,88 @@
-﻿<Window x:Class="WallStartSchedule.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ведомость черновой отделки" 
-        Height="460" 
-        Width="500"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize">
-
-    <Grid Margin="15,15,15,0">
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="WallStartSchedule.MainWindow" Title="ARV — Черновая отделка" Width="540" Height="760" MinWidth="440" MinHeight="300" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/WallStartSchedule;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
-        <TextBlock Grid.Row="0" Text="Выберите типы отделки для столбцов" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
-
-        <Grid Grid.Row="1" Margin="0,0,0,10">
+        <Grid Grid.Row="0" Margin="24,24,24,16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="32"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Группа модели:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <ComboBox Grid.Column="1" x:Name="FilterComboBox" SelectionChanged="FilterComboBox_SelectionChanged" Height="23"/>
+            <Image Source="/WallStartSchedule;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Черновая отделка" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Выберите группу модели и типы отделки для ведомости." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
         </Grid>
-
-        <!-- Коэффициент запаса -->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="100"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" 
-                       Text="Коэффициент запаса (0-100):" 
-                       VerticalAlignment="Center" 
-                       Margin="0,0,10,0"/>
-            <TextBox Grid.Column="1" 
-                     x:Name="CoefficientTextBox" 
-                     Text="0" 
-                     Height="23" 
-                     TextAlignment="Right"/>
-        </Grid>
-
-        <TextBlock Grid.Row="3" Text="Столбец 1:" Margin="0,0,0,3"/>
-        <ComboBox Grid.Row="4" x:Name="ComboBox1" Margin="0,0,0,8" Height="23"/>
-
-        <TextBlock Grid.Row="5" Text="Столбец 2:" Margin="0,0,0,3"/>
-        <ComboBox Grid.Row="6" x:Name="ComboBox2" Margin="0,0,0,8" Height="23"/>
-
-        <TextBlock Grid.Row="7" Text="Столбец 3:" Margin="0,0,0,3"/>
-        <ComboBox Grid.Row="8" x:Name="ComboBox3" Margin="0,0,0,8" Height="23"/>
-
-        <TextBlock Grid.Row="9" Text="Столбец 4:" Margin="0,0,0,3"/>
-        <ComboBox Grid.Row="10" x:Name="ComboBox4" Margin="0,0,0,8" Height="23"/>
-
-        <TextBlock Grid.Row="11" Text="Столбец 5:" Margin="0,0,0,3"/>
-        <ComboBox Grid.Row="12" x:Name="ComboBox5" Margin="0,0,0,10" Height="23"/>
-
-        <Grid Grid.Row="15" Margin="0,5,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="1" Content="OK" Width="80" Height="26" Click="OkButton_Click" Margin="0,0,10,0"/>
-            <Button Grid.Column="2" Content="Отмена" Width="80" Height="26" Click="CancelButton_Click"/>
-        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Margin="0,0,0,16">
+                                    <Label Content="Группа модели" Target="{Binding ElementName=FilterComboBox}" Style="{StaticResource Arv.InputLabel}"/>
+                                    <ComboBox x:Name="FilterComboBox" SelectionChanged="FilterComboBox_SelectionChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <StackPanel Margin="0,0,0,16">
+                                    <Label Content="Коэффициент запаса, % (0–100)" Target="{Binding ElementName=CoefficientTextBox}" Style="{StaticResource Arv.InputLabel}"/>
+                                    <TextBox x:Name="CoefficientTextBox" Text="0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Типы отделки по столбцам" Style="{StaticResource Arv.SectionHeading}" Margin="0,0,0,16"/>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Столбец 1" Target="{Binding ElementName=ComboBox1}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="ComboBox1"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Столбец 2" Target="{Binding ElementName=ComboBox2}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="ComboBox2"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Столбец 3" Target="{Binding ElementName=ComboBox3}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="ComboBox3"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Столбец 4" Target="{Binding ElementName=ComboBox4}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="ComboBox4"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Столбец 5" Target="{Binding ElementName=ComboBox5}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="ComboBox5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Рассчитать" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="OkButton_Click" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="CancelButton_Click" IsCancel="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

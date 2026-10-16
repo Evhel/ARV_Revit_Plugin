@@ -18,6 +18,7 @@ namespace FinishingSchedulePlugin
         public MainWindow(UIDocument uiDoc)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
 
             // Устанавливаем владельца окна
             var helper = new WindowInteropHelper(this);
@@ -87,13 +88,13 @@ namespace FinishingSchedulePlugin
         {
             if (!ARV.Common.Algorithms.TryNumber(txtFactor.Text, out double factor))
             {
-                MessageBox.Show("Введите корректное число для коэффициента.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, txtFactor, "Введите корректное число для коэффициента.");
                 return;
             }
 
             if (factor < 0 || factor > 100)
             {
-                MessageBox.Show("Коэффициент должен быть от 0 до 100.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, txtFactor, "Коэффициент должен быть от 0 до 100.");
                 return;
             }
 

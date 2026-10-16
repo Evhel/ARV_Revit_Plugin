@@ -1,0 +1,57 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ViewNumberingPlugin.NumberingDialog" Title="ARV — Нумерация видов" Width="540" Height="480" MinWidth="440" MinHeight="300" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/ViewNumberingPlugin;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="24,24,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/ViewNumberingPlugin;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Нумерация видов" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Настройте номера выбранных видовых экранов." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Тип нумерации" Target="{Binding ElementName=_cmbType}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="_cmbType">
+                                <ComboBoxItem Content="Цифры (1, 2, 3…)"/>
+                                <ComboBoxItem Content="Заглавные (А, Б, В…)"/>
+                                <ComboBoxItem Content="Строчные (а, б, в…)"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Начать с" Target="{Binding ElementName=_txtStart}" Style="{StaticResource Arv.InputLabel}"/>
+                            <TextBox x:Name="_txtStart" Text="1"/>
+                        </StackPanel>
+                        <TextBlock Text="На каждом листе — сверху вниз, слева направо." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Пронумеровать" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="OnApply" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="OnCancel" IsCancel="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

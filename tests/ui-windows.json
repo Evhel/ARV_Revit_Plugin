@@ -1,0 +1,74 @@
+[
+  {
+    "project": "WallStartSchedule",
+    "file": "MainWindow.xaml",
+    "cls": "WallStartSchedule.MainWindow",
+    "title": "Черновая отделка",
+    "width": 540,
+    "height": 760
+  },
+  {
+    "project": "FinishingSchedulePlugin",
+    "file": "MainWindow.xaml",
+    "cls": "FinishingSchedulePlugin.MainWindow",
+    "title": "Чистовая отделка",
+    "width": 540,
+    "height": 500
+  },
+  {
+    "project": "CreateBlankSheetsPlugin",
+    "file": "MainWindow.xaml",
+    "cls": "CreateBlankSheetsPlugin.MainWindow",
+    "title": "Создать чистые листы",
+    "width": 540,
+    "height": 440
+  },
+  {
+    "project": "HideCategory",
+    "file": "UserWindRoom.xaml",
+    "cls": "HideCategory.UserWindRoom",
+    "title": "Скрыть категорию",
+    "width": 540,
+    "height": 410
+  },
+  {
+    "project": "HideSubCategory",
+    "file": "UserWindRoom.xaml",
+    "cls": "HideCategory.UserWindRoom",
+    "title": "Скрыть подкатегорию",
+    "width": 540,
+    "height": 500
+  },
+  {
+    "project": "CopyViewsWithRename",
+    "file": "CopyViewsWindow.xaml",
+    "cls": "CopyViewsWithRename.CopyViewsWindow",
+    "title": "Копировать виды",
+    "width": 700,
+    "height": 790
+  },
+  {
+    "project": "PlaceViewsOnSheet",
+    "file": "MainWindow.xaml",
+    "cls": "PlaceViewsOnSheet.MainWindow",
+    "title": "Виды на лист",
+    "width": 760,
+    "height": 740
+  },
+  {
+    "project": "TightCropPlugin",
+    "file": "SettingsWindow.xaml",
+    "cls": "AdjustCropToBreakLines.SettingsWindow",
+    "title": "Обрезать виды",
+    "width": 620,
+    "height": 540
+  },
+  {
+    "project": "ViewNumberingPlugin",
+    "file": "NumberingDialog.xaml",
+    "cls": "ViewNumberingPlugin.NumberingDialog",
+    "title": "Нумерация видов",
+    "width": 540,
+    "height": 480
+  }
+]

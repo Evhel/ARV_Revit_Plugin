@@ -19,6 +19,8 @@ namespace PlaceViewsOnSheet
         public MainWindow(List<View> selectedViews, List<ViewSheet> availableSheets)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
+            ContextText.Text = $"Выбрано видов: {selectedViews.Count}. Размещение по имени вида.";
 
             views = selectedViews;
             sheets = availableSheets;
@@ -37,27 +39,27 @@ namespace PlaceViewsOnSheet
             // Проверяем выбран ли лист
             if (SheetsComboBox.SelectedItem == null)
             {
-                MessageBox.Show("Пожалуйста, выберите лист.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, SheetsComboBox, "Пожалуйста, выберите лист.");
                 return;
             }
 
             // Парсим количество видов в ряду
             if (!int.TryParse(ViewsPerRowTextBox.Text, out int viewsPerRow) || viewsPerRow <= 0)
             {
-                MessageBox.Show("Введите корректное количество видов в ряду (положительное целое число).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, ViewsPerRowTextBox, "Введите корректное количество видов в ряду (положительное целое число).");
                 return;
             }
 
             // Парсим значения шага (в миллиметрах)
             if (!ARV.Common.Algorithms.TryNumber(StepXTextBox.Text, out double stepX) || stepX <= 0)
             {
-                MessageBox.Show("Введите корректное значение шага по X (положительное число в миллиметрах).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, StepXTextBox, "Введите корректное значение шага по X (положительное число в миллиметрах).");
                 return;
             }
 
             if (!ARV.Common.Algorithms.TryNumber(StepYTextBox.Text, out double stepY) || stepY <= 0)
             {
-                MessageBox.Show("Введите корректное значение шага по Y (положительное число в миллиметрах).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, StepYTextBox, "Введите корректное значение шага по Y (положительное число в миллиметрах).");
                 return;
             }
 

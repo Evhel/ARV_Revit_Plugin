@@ -15,6 +15,7 @@ namespace HideCategory
         public UserWindRoom(UIApplication app)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
             new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             categories = app.ActiveUIDocument.Document.Settings.Categories.Cast<Category>()
@@ -36,8 +37,8 @@ namespace HideCategory
         private void OnHideCategoryClick(object sender, RoutedEventArgs e)
         {
             var sub = SubCategoryComboBox.SelectedItem as Category;
-            if (sub == null) return;
-            if (MessageBox.Show($"Скрыть подкатегорию «{sub.Name}» во всех подходящих видах и шаблонах?", "Графика ARV",
+            if (sub == null) { ARV.Common.UiSupport.Error(this, SubCategoryComboBox, "Выберите доступную подкатегорию."); return; }
+            if (MessageBox.Show(this, $"Скрыть подкатегорию «{sub.Name}» во всех подходящих видах и шаблонах?", "Графика ARV",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             SelectedCategoryId = sub.Id;
             DialogResult = true;

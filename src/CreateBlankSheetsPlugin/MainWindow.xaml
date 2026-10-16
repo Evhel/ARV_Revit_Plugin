@@ -1,29 +1,52 @@
-﻿<Window x:Class="CreateBlankSheetsPlugin.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Создать пустые листы" Width="310" Height="135"
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
-    <Grid Margin="8">
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="CreateBlankSheetsPlugin.MainWindow" Title="ARV — Создать чистые листы" Width="540" Height="440" MinWidth="440" MinHeight="300" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CreateBlankSheetsPlugin;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Кол-во листов:" VerticalAlignment="Center" Margin="0,0,5,2"/>
-        <TextBox x:Name="SheetCountTextBox" Grid.Row="0" Grid.Column="1" Text="1" Height="22" Margin="0,0,0,2"
-                 HorizontalAlignment="Stretch" PreviewTextInput="SheetCountTextBox_PreviewTextInput"/>
-
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Тип штампа:" VerticalAlignment="Center" Margin="0,0,5,2"/>
-        <ComboBox x:Name="TitleBlockComboBox" Grid.Row="1" Grid.Column="1" Height="22" Margin="0,0,0,2" SelectionChanged="TitleBlockComboBox_SelectionChanged"/>
-
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
-            <Button x:Name="OkButton" Content="Создать" Width="80" Height="22" Margin="0,0,6,0" Click="OkButton_Click" IsDefault="True"/>
-            <Button x:Name="CancelButton" Content="Отмена" Width="80" Height="22" Click="CancelButton_Click" IsCancel="True"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="24,24,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/CreateBlankSheetsPlugin;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Создать чистые листы" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Выберите количество листов и основную надпись." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Количество листов" Target="{Binding ElementName=SheetCountTextBox}" Style="{StaticResource Arv.InputLabel}"/>
+                            <TextBox x:Name="SheetCountTextBox" Text="1" PreviewTextInput="SheetCountTextBox_PreviewTextInput"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Тип основной надписи" Target="{Binding ElementName=TitleBlockComboBox}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="TitleBlockComboBox" SelectionChanged="TitleBlockComboBox_SelectionChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Создать листы" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="OkButton_Click" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="CancelButton_Click" IsCancel="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

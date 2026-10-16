@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Command.cs" />
+    <Compile Include="NumberingDialog.xaml.cs"><DependentUpon>NumberingDialog.xaml</DependentUpon></Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UserControl1.xaml.cs">
       <DependentUpon>UserControl1.xaml</DependentUpon>
@@ -90,5 +91,11 @@
     <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
     <Compile Include="..\Common\RevitSupport.cs"><Link>Common\RevitSupport.cs</Link></Compile>
   </ItemGroup>
+  <ItemGroup>
+    <Page Include="..\Common\ArvTheme.xaml"><Link>Common\ArvTheme.xaml</Link><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Compile Include="..\Common\UiSupport.cs"><Link>Common\UiSupport.cs</Link></Compile>
+    <Resource Include="..\ARV_Ribbon\Images\ViewNumber.png"><Link>Common\Command.png</Link></Resource>
+  </ItemGroup>
+  <ItemGroup><Page Include="NumberingDialog.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

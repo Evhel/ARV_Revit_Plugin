@@ -18,6 +18,7 @@ namespace CreateBlankSheetsPlugin
         public MainWindow(UIApplication app, List<FamilySymbol> types)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
             new System.Windows.Interop.WindowInteropHelper(this) { Owner = app.MainWindowHandle };
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             titleBlocks = types;
@@ -27,9 +28,9 @@ namespace CreateBlankSheetsPlugin
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             if (!int.TryParse(SheetCountTextBox.Text, out int count) || count <= 0)
-            { MessageBox.Show("Введите положительное целое количество листов."); return; }
+            { ARV.Common.UiSupport.Error(this, SheetCountTextBox, "Введите положительное целое количество листов."); return; }
             if (TitleBlockComboBox.SelectedIndex < 0)
-            { MessageBox.Show("Выберите тип основной надписи."); return; }
+            { ARV.Common.UiSupport.Error(this, TitleBlockComboBox, "Выберите тип основной надписи."); return; }
             SheetCount = count;
             SelectedTitleBlockId = titleBlocks[TitleBlockComboBox.SelectedIndex].Id;
             DialogResult = true;

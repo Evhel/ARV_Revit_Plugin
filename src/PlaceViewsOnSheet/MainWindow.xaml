@@ -1,81 +1,101 @@
-﻿<Window x:Class="PlaceViewsOnSheet.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Размещение видов на листе" Height="450" Width="550"
-        WindowStartupLocation="CenterScreen">
-
-    <Grid Margin="10">
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="PlaceViewsOnSheet.MainWindow" Title="ARV — Виды на лист" Width="760" Height="740" MinWidth="440" MinHeight="300" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/PlaceViewsOnSheet;component/Common/ArvTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
-        <!-- Выбранные виды -->
-        <TextBlock Grid.Row="0" Text="Выбранные виды:" FontWeight="Bold" Margin="0,0,0,5"/>
-        <ListBox Grid.Row="1" Name="ViewsListBox" Height="120" Margin="0,0,0,10" DisplayMemberPath="Name"/>
-
-        <!-- Выбор листа -->
-        <TextBlock Grid.Row="2" Text="Выберите лист:" FontWeight="Bold" Margin="0,0,0,5"/>
-        <ComboBox Grid.Row="3" Name="SheetsComboBox" Height="25" Margin="0,0,0,10">
-            <ComboBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding SheetNumber}"/>
-                        <TextBlock Text=" - "/>
-                        <TextBlock Text="{Binding Name}"/>
+        <Grid Grid.Row="0" Margin="24,24,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Image Source="/PlaceViewsOnSheet;component/Common/Command.png" Width="32" Height="32" VerticalAlignment="Top"/>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Виды на лист" Style="{StaticResource Arv.Heading}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ContextText" Text="Выберите лист и настройте размещение выбранных видов." Style="{StaticResource Arv.HelpText}" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+        <ScrollViewer x:Name="BodyScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,0,24,0" Focusable="False">
+            <StackPanel>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Выбранные виды" Style="{StaticResource Arv.SectionHeading}" Margin="0,0,0,16"/>
+                        <ListBox x:Name="ViewsListBox" Height="144">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" ToolTip="{Binding Name}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="Порядок: по имени вида, слева направо и сверху вниз. Список показывает весь исходный выбор Revit." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
                     </StackPanel>
-                </DataTemplate>
-            </ComboBox.ItemTemplate>
-        </ComboBox>
-
-        <!-- Настройки размещения -->
-        <GroupBox Grid.Row="4" Header="Настройки размещения" Margin="0,0,0,10">
-            <Grid Margin="10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Количество видов в ряду -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Видов в ряду:" Margin="5" FontWeight="Bold"/>
-                <TextBox Grid.Row="0" Grid.Column="1" Name="ViewsPerRowTextBox" Text="3" Margin="5" Width="60" HorizontalAlignment="Left" ToolTip="Максимальное количество видов в одной строке"/>
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="шт." Margin="5"/>
-
-                <!-- Шаг по X -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Шаг по X:" Margin="5"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Name="StepXTextBox" Text="300" Margin="5" Width="100" HorizontalAlignment="Left" ToolTip="Расстояние между видами по горизонтали в мм"/>
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="мм" Margin="5"/>
-
-                <!-- Шаг по Y -->
-                <TextBlock Grid.Row="1" Grid.Column="3" Text="Шаг по Y:" Margin="5"/>
-                <TextBox Grid.Row="1" Grid.Column="4" Name="StepYTextBox" Text="200" Margin="5" Width="100" HorizontalAlignment="Left" ToolTip="Расстояние между видами по вертикали в мм"/>
-                <TextBlock Grid.Row="1" Grid.Column="5" Text="мм" Margin="5"/>
-
-                <!-- Пояснение -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="6" 
-                           Text="* Начальная позиция: 50 мм от левого и нижнего края листа" 
-                           FontSize="10" Foreground="Gray" Margin="5,10,0,0"/>
-            </Grid>
-        </GroupBox>
-
-        <!-- Кнопки -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="OkButton" Content="OK" Width="80" Height="30" Margin="5" Click="OkButton_Click" IsDefault="True"/>
-            <Button Name="CancelButton" Content="Отмена" Width="80" Height="30" Margin="5" Click="CancelButton_Click" IsCancel="True"/>
-        </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Arv.Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Размещение" Style="{StaticResource Arv.SectionHeading}" Margin="0,0,0,16"/>
+                        <StackPanel Margin="0,0,0,16">
+                            <Label Content="Лист" Target="{Binding ElementName=SheetsComboBox}" Style="{StaticResource Arv.InputLabel}"/>
+                            <ComboBox x:Name="SheetsComboBox">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Run Text="{Binding SheetNumber}"/>
+                                            <Run Text=" — "/>
+                                            <Run Text="{Binding Name}"/>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Margin="0,0,0,16">
+                                    <Label Content="Видов в ряду" Target="{Binding ElementName=ViewsPerRowTextBox}" Style="{StaticResource Arv.InputLabel}"/>
+                                    <TextBox x:Name="ViewsPerRowTextBox" Text="3"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <StackPanel Margin="0,0,0,16">
+                                    <Label Content="Шаг по X, мм" Target="{Binding ElementName=StepXTextBox}" Style="{StaticResource Arv.InputLabel}"/>
+                                    <TextBox x:Name="StepXTextBox" Text="300"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <StackPanel Margin="0,0,0,16">
+                                    <Label Content="Шаг по Y, мм" Target="{Binding ElementName=StepYTextBox}" Style="{StaticResource Arv.InputLabel}"/>
+                                    <TextBox x:Name="StepYTextBox" Text="200"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Начальная точка — 50 мм от левого и верхнего края листа. Шаг задаётся между точками размещения." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Уже размещённые и неподходящие виды будут пропущены с объяснением в результате." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">
+            <StackPanel>
+                <TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="OkButton" Content="Разместить" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Margin="0,0,8,0" Click="OkButton_Click" IsDefault="True"/>
+                    <Button x:Name="CancelButton" Content="Отмена" Click="CancelButton_Click" IsCancel="True"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

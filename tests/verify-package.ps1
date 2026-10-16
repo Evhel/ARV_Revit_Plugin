@@ -1,4 +1,4 @@
-param([string]$RepositoryRoot = (Split-Path $PSScriptRoot -Parent))
+﻿param([string]$RepositoryRoot = (Split-Path $PSScriptRoot -Parent))
 $ErrorActionPreference = 'Stop'
 [AppDomain]::CurrentDomain.add_ReflectionOnlyAssemblyResolve({
     param($sender, $eventArgs)
@@ -9,7 +9,9 @@ $ErrorActionPreference = 'Stop'
 })
 $package = Join-Path $RepositoryRoot 'dist\Revit2022'
 $plugins = Join-Path $package 'ARV'
-$zipPath = Join-Path $RepositoryRoot 'dist\ARV_Revit_Plugin_Revit2022_v1.1.1.zip'
+$zipPath = Join-Path $RepositoryRoot 'dist\ARV_Revit_Plugin_Revit2022_v1.2.0.zip'
+$expectedZipHash = ((Get-Content -LiteralPath ($zipPath+'.sha256') -Raw).Trim() -split '\s+')[0]
+if ((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash -ne $expectedZipHash) { throw 'ZIP sidecar hash mismatch.' }
 $source = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'src\ARV_Ribbon\Class1.cs'))
 $buttons = [regex]::Matches($source, 'Add\(app, "([^"]+)", "([^"]+)", "([^"]+)", "([^"]+)"')
 if ($buttons.Count -ne 11) { throw 'Expected 11 ribbon mappings.' }
@@ -17,7 +19,7 @@ $assemblies = @{}
 $metadata = foreach ($file in Get-ChildItem -LiteralPath $plugins -Filter *.dll | Sort-Object Name) {
     $assembly = [Reflection.Assembly]::ReflectionOnlyLoadFrom($file.FullName)
     $assemblies[$file.BaseName] = $assembly
-    if ($assembly.GetName().Version.ToString() -ne '1.1.1.0') { throw ('Unexpected version: ' + $file.Name) }
+    if ($assembly.GetName().Version.ToString() -ne '1.2.0.0') { throw ('Unexpected version: ' + $file.Name) }
     if ($assembly.GetName().ProcessorArchitecture.ToString() -ne 'Amd64') { throw ('Unexpected architecture: ' + $file.Name) }
     $refs = @($assembly.GetReferencedAssemblies() | Where-Object { $_.Name -in 'RevitAPI', 'RevitAPIUI' })
     if ($refs.Count -ne 2 -or @($refs | Where-Object {$_.Version.Major -ne 22}).Count) { throw ('Unexpected Revit references: ' + $file.Name) }
@@ -64,6 +66,6 @@ try {
 } finally { $archive.Dispose() }
 if ($zipFiles -ne @(Get-ChildItem -LiteralPath $package -Recurse -File).Count) { throw 'Incomplete ZIP.' }
 if (Get-ChildItem -LiteralPath $plugins -File | Where-Object { $_.Name -match '^RevitAPI|CreateCeil|FamilyContainerModel|ExportNavis' }) { throw 'Excluded binary in package.' }
-$result = [pscustomobject]@{Version='1.1.1';ButtonMappings=$buttons.Count;Assemblies=$metadata;ZipFiles=$zipFiles;ZipSHA256=(Get-FileHash -LiteralPath $zipPath).Hash.ToLowerInvariant();NativeExecution='Not run: existing Revit window capture timed out twice.'}
+$result = [pscustomobject]@{Version='1.2.0';ButtonMappings=$buttons.Count;Assemblies=$metadata;ZipFiles=$zipFiles;ZipSHA256=(Get-FileHash -LiteralPath $zipPath).Hash.ToLowerInvariant();NativeExecution='Manual verification by owner; automation intentionally not run.'}
 $result | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $RepositoryRoot 'docs\release-verification.json') -Encoding UTF8
 'PASS: 12 x64 DLLs for Revit API 22; 11 command/availability/icon mappings; manifest; checksums; '+$zipFiles+' ZIP files match the package.'

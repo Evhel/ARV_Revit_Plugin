@@ -21,6 +21,7 @@ namespace WallStartSchedule
         public MainWindow(Document doc)
         {
             InitializeComponent();
+            ARV.Common.UiSupport.Initialize(this);
             _doc = doc;
             SelectedFinishTypes = new Dictionary<int, ElementId>();
             _groupValues = new List<string>();
@@ -190,15 +191,13 @@ namespace WallStartSchedule
             // Валидация коэффициента
             if (!ARV.Common.Algorithms.TryNumber(CoefficientTextBox.Text, out double coefficient))
             {
-                MessageBox.Show("Введите число от 0 до 100 для коэффициента запаса!", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ARV.Common.UiSupport.Error(this, CoefficientTextBox, "Введите число от 0 до 100 для коэффициента запаса.");
                 return;
             }
 
             if (coefficient < 0 || coefficient > 100)
             {
-                MessageBox.Show("Коэффициент должен быть от 0 до 100!", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ARV.Common.UiSupport.Error(this, CoefficientTextBox, "Коэффициент должен быть от 0 до 100.");
                 return;
             }
 
@@ -226,13 +225,12 @@ namespace WallStartSchedule
 
             if (activeColumns == 0)
             {
-                MessageBox.Show("Выберите хотя бы один тип!", "Предупреждение",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ARV.Common.UiSupport.Error(this, ComboBox1, "Выберите хотя бы один тип отделки.");
                 return;
             }
 
             if (SelectedFinishTypes.Values.Select(id => id.IntegerValue).Distinct().Count() != SelectedFinishTypes.Count)
-            { MessageBox.Show("Один тип стены выбран в нескольких колонках."); return; }
+            { ARV.Common.UiSupport.Error(this, ComboBox1, "Один тип стены выбран в нескольких колонках."); return; }
             this.DialogResult = true;
             this.Close();
         }
