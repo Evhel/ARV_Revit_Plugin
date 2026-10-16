@@ -8,34 +8,66 @@ namespace ARV.ElementViews
 {
     internal static class SheetFormatParameters
     {
-        internal static void Apply(Element sheet,IList<Element> blocks,string a,string x)
+        private sealed class Target
         {
-            Set(sheet,blocks,"А",a);Set(sheet,blocks,"x",x);
+            internal string Name,Value;
+            internal bool IsType;
         }
-        private static void Set(Element sheet,IList<Element> blocks,string name,string value)
+        internal static void Apply(IList<Element> blocks,Element symbol,Func<Element> copyType,string a,string x)
         {
-            if(string.IsNullOrWhiteSpace(value))return;
-            value=value.Trim();
-            var candidates=sheet.GetParameters(name).ToList();
-            if(candidates.Count==0)candidates=blocks.SelectMany(block=>block.GetParameters(name)).ToList();
-            if(candidates.Count!=1)throw new InvalidOperationException("Параметр формата «"+name+"» не найден однозначно на листе или экземпляре основной надписи. Параметры типа не изменяются.");
-            var parameter=candidates[0];
-            if(parameter.IsReadOnly)throw new InvalidOperationException("Параметр формата «"+name+"» недоступен для записи.");
-            bool success;
+            var targets=new List<Target>();
+            foreach(var entry in new[]{new Target{Name="А",Value=a},new Target{Name="х",Value=x}})
+            {
+                if(string.IsNullOrWhiteSpace(entry.Value))continue;
+                entry.Value=entry.Value.Trim();
+                var instance=Find(blocks,entry.Name);
+                entry.IsType=instance==null;
+                var parameter=instance??Find(new[]{symbol},entry.Name);
+                if(parameter==null)throw new InvalidOperationException("Не найден параметр «"+entry.Name+"» экземпляра или типа основной надписи. Сохраните отчёт кнопкой «Параметры семейства…».");
+                Validate(parameter,entry.Name,entry.Value);targets.Add(entry);
+            }
+            // A new/reused dedicated type is assigned to the new titleblock before writing.
+            // Resolve instance parameters again because changing the type can rebuild them.
+            var targetType=targets.Any(t=>t.IsType)?copyType():symbol;
+            foreach(var target in targets)
+            {
+                var parameter=Find(target.IsType?new[]{targetType}:blocks,target.Name);
+                if(parameter==null)throw new InvalidOperationException("После смены типа потерян параметр «"+target.Name+"».");
+                Set(parameter,target.Name,target.Value);
+            }
+        }
+        private static Parameter Find(IEnumerable<Element> elements,string name)
+        {
+            var parameters=elements.Where(e=>e!=null).SelectMany(e=>e.Parameters.Cast<Parameter>()).Where(p=>p.Definition!=null).ToList();
+            foreach(string alias in name=="А"?new[]{"А","A"}:new[]{"х","x"})
+            {
+                var matches=parameters.Where(p=>string.Equals(p.Definition.Name.Trim(),alias,StringComparison.OrdinalIgnoreCase)).ToList();
+                if(matches.Count>1)throw new InvalidOperationException("Неоднозначный параметр «"+alias+"» основной надписи. Сохраните отчёт параметров семейства.");
+                if(matches.Count==1)return matches[0];
+            }
+            return null;
+        }
+        private static void Validate(Parameter parameter,string name,string value)
+        {
+            if(parameter.IsReadOnly)throw new InvalidOperationException("Параметр «"+name+"» основной надписи недоступен для записи (возможно, задан формулой). Сохраните отчёт параметров семейства.");
+            if(parameter.StorageType==StorageType.Integer && !int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out _))throw new InvalidOperationException("Для параметра «"+name+"» введите целое число.");
+            if(parameter.StorageType!=StorageType.Integer && parameter.StorageType!=StorageType.String && parameter.StorageType!=StorageType.Double)throw new InvalidOperationException("Неподдерживаемый тип параметра «"+name+"».");
+        }
+        private static void Set(Parameter parameter,string name,string value)
+        {
+            Validate(parameter,name,value);bool success;
             switch(parameter.StorageType)
             {
                 case StorageType.String:
                     if(parameter.AsString()==value)return;
                     success=parameter.Set(value) && parameter.AsString()==value;break;
                 case StorageType.Integer:
-                    if(!int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out int number))throw new InvalidOperationException("Для параметра «"+name+"» введите целое число.");
+                    int number=int.Parse(value,CultureInfo.InvariantCulture);
                     if(parameter.AsInteger()==number)return;
                     success=parameter.Set(number) && parameter.AsInteger()==number;break;
-                case StorageType.Double:
-                    success=parameter.SetValueString(value);break;
-                default:throw new InvalidOperationException("Неподдерживаемый тип параметра формата «"+name+"».");
+                default:success=parameter.SetValueString(value);break;
             }
-            if(!success)throw new InvalidOperationException("Не удалось записать параметр формата «"+name+"».");
+            if(!success)throw new InvalidOperationException("Не удалось записать параметр «"+name+"» основной надписи.");
         }
     }
 }
