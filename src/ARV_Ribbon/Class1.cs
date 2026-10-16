@@ -29,6 +29,7 @@ namespace ARV_Ribbon
                 added += Add(app, "Виды", "CreateBlankSheetsPlugin", "CreateBlankSheetsPlugin.CreateBlankSheetsCommand", "NewSheet.png", "Создать\nчистые листы", "Создать листы с выбранной основной надписью", errors);
                 added += Add(app, "Виды", "CopyViewsWithRename", "CopyViewsWithRename.CopyViewsCommand", "CopyView.png", "Копировать\nвиды", "Копировать выбранные виды с переименованием", errors);
                 added += Add(app, "Виды", "PlaceViewsOnSheet", "PlaceViewsOnSheet.PlaceViewsCommand", "ViewsToSheets.png", "Виды\nна лист", "Разместить выбранные виды по алфавиту параметра «Имя вида»", errors);
+                added += Add(app, "Виды", "ElementViews", "ARV.ElementViews.Command", "ElementViews.png", "Создать виды\nэлемента", "Создать разрезы элемента, горизонтальные планы и отдельный лист", errors);
                 added += Add(app, "Виды", "TightCropPlugin", "AdjustCropToBreakLines.AdjustCropToBreakLinesCommand", "ViewsCut.png", "Обрезать\nвиды", "Подогнать прямоугольную обрезку без изменения глубины", errors);
                 added += Add(app, "Виды", "ViewNumberingPlugin", "ViewNumberingPlugin.Command", "ViewNumber.png", "Нумерация\nвидов", "Нумеровать выбранные видовые экраны по положению на листе", errors);
                 added += Add(app, "Рабочие наборы", "CreateViewsForWorksets", "WorksetViewsPlugin.WorksetViewsCommand", "Worksets.png", "3D виды по\nрабочим наборам", "Создать отдельный 3D-вид для каждого пользовательского рабочего набора", errors);
@@ -37,7 +38,7 @@ namespace ARV_Ribbon
                 added += Add(app, "Армирование", "AreaReinforcementHosts", "ARV.AreaReinforcementHosts.RehostByFloorCommand", "RehostAreasFloor.png", "Поменять этаж\nоснов АП", "Назначить основы выбранным армированиям по нижней границе контура на выбранном этаже", errors);
             }
             catch (Exception ex) { errors.Add(ex.Message); }
-            if (errors.Count > 0) TaskDialog.Show("Панель ARV", $"Создано кнопок: {added} из 14.\n" + string.Join("\n", errors));
+            if (errors.Count > 0) TaskDialog.Show("Панель ARV", $"Создано кнопок: {added} из 15.\n" + string.Join("\n", errors));
             return added == 0 ? Result.Failed : Result.Succeeded;
         }
 

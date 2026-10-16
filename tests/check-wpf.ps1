@@ -20,7 +20,7 @@ foreach ($case in $cases) {
     $assemblies[$case.project] = [Reflection.Assembly]::LoadFrom((Join-Path $projectPath ('bin\Release\'+$name+'.dll')))
 }
 function Render-Content($window, $width, $height, $dpi, $path) {
-    # Без Show/ShowDialog: только содержимое окна, без системной рамки.
+    # Only the window content is rendered; no Show/ShowDialog or Revit access.
     $content = $window.Content
     $content.Background = $window.FindResource('Arv.Background')
     $content.Measure([Windows.Size]::new($width,$height))
@@ -40,9 +40,34 @@ function Render-Content($window, $width, $height, $dpi, $path) {
     $stream = [IO.File]::Create($path)
     try {$encoder.Save($stream)} finally {$stream.Dispose()}
 }
+
+$elementAssembly=$assemblies['ElementViews']
+function New-ElementChoice($id,$key,$name) {
+ $choice=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.Choice'));$choice.Id=$id;$choice.Key=$key;$choice.Name=$name;return $choice
+}
+function New-ElementPoint($x,$y,$z) {return [Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.Point3'),[object[]]@([double]$x,[double]$y,[double]$z))}
+$elementCatalog=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.Catalog'))
+$elementCatalog.Parameters.Add((New-ElementChoice -1 '' 'Порядковый номер (без параметра)'))
+$elementCatalog.Parameters.Add((New-ElementChoice 100 'I:mark' 'Марка (экземпляр)'))
+$elementCatalog.SectionTypes.Add((New-ElementChoice 1 '' 'Разрез элемента'))
+$elementCatalog.Templates.Add((New-ElementChoice -1 '' 'Без шаблона'))
+$elementCatalog.Templates.Add((New-ElementChoice 2 '' 'АР_Колонны 1:20'))
+$elementCatalog.TitleBlocks.Add((New-ElementChoice 3 '' 'ARV_A1: Горизонтальный'))
+for($i=0;$i -lt 50;$i++) {
+ $element=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ElementData'));$element.Id=$i+1;$element.Name='Колонна';$element.AxisX=New-ElementPoint 1 0 0;$element.AxisY=New-ElementPoint 0 1 0
+ $points=[Array]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.Point3'),8);$n=0;$bottom=[Math]::Floor($i/17)*10
+ foreach($x in @(0,1)){foreach($y in @(0,1)){foreach($z in @($bottom,($bottom+10))){$points.SetValue((New-ElementPoint $x $y $z),$n);$n++}}}
+ $element.Corners=$points;$element.Values.Add('I:mark',('К-'+(($i%17)+1)));$elementCatalog.Elements.Add($element)
+}
+$elementDialog=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.MainWindow'),[object[]]@($elementCatalog))
+$elementDialog.FindName('ParameterComboBox').SelectedIndex=1;$elementDialog.FindName('UniqueCheckBox').IsChecked=$true
+$elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
+if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 17 из 50' -or $elementDialog.Rows.Count -ne 7) {throw 'Element-view selection preview regression'}
+if ($elementDialog.Rows[0].Preview -cne 'План1_К-1') {throw 'Element-view parameter naming regression'}
 $events = @('Click','SelectionChanged','TextChanged','PreviewTextInput','KeyDown')
 $count = 0
 foreach ($case in $cases) {
+    $renderName=if($case.renderName){$case.renderName}else{$case.project}
     $type = $assemblies[$case.project].GetType($case.cls,$true)
     $path = Join-Path $RepositoryRoot ('src\'+$case.project+'\'+$case.file)
     [xml]$xml = Get-Content -LiteralPath $path -Raw -Encoding UTF8
@@ -96,11 +121,28 @@ foreach ($case in $cases) {
         $window.FindName('ResultsGrid').Height=102
         $window.FindName('SummaryText').Text='Изменено: 8. Пропущено: 2.'
     }
+    if ($case.project -eq 'ElementViews' -and $case.file -eq 'MainWindow.xaml') {
+        $window.FindName('ViewsGrid').ItemsSource=$elementDialog.Rows
+        $window.FindName('ParameterComboBox').ItemsSource=$elementCatalog.Parameters;$window.FindName('ParameterComboBox').SelectedIndex=1
+        $window.FindName('SectionTypeComboBox').ItemsSource=$elementCatalog.SectionTypes;$window.FindName('SectionTypeComboBox').SelectedIndex=0
+        $window.FindName('TitleBlockComboBox').Items.Clear()
+        $window.FindName('TitleBlockComboBox').ItemsSource=$elementCatalog.TitleBlocks;$window.FindName('TitleBlockComboBox').SelectedIndex=0
+        $window.FindName('UniqueCheckBox').IsChecked=$true
+        $window.FindName('CountInfo').Text=$elementDialog.FindName('CountInfo').Text
+        $window.FindName('ContextText').Text='Выбрано элементов модели: 50. Неподходящих объектов: 0.'
+        $window.FindName('SheetNamePreview').Text='Пример: Элемент К-1'
+    }
+    if ($case.project -eq 'ElementViews' -and $case.file -eq 'ReportWindow.xaml') {
+        $table=[Data.DataTable]::new();[void]$table.Columns.Add('Element');[void]$table.Columns.Add('Reason')
+        [void]$table.Rows.Add('10501 — Колонна К-1','Виды не помещаются на листе. Выберите больший формат или увеличьте знаменатель масштаба.')
+        $window.FindName('SkippedGrid').ItemsSource=$table.DefaultView
+        $window.FindName('SummaryText').Text='Обработано: 16. Виды: 48. Листы: 16. Пропущено: 1. Повторы исключены отбором: 33.'
+    }
     $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton'); if ($case.report) {$cancel=$ok}
     if (-not $cancel.IsCancel -or ($case.defaultAction -ne $false -and -not $ok.IsDefault) -or ($case.defaultAction -eq $false -and ($ok.IsDefault -or -not $cancel.IsDefault))) {throw 'Keyboard defaults missing'}
     if ($ok.Background.Color.ToString() -ne '#FF57007F') {throw ('Primary color mismatch: '+$case.project)}
     foreach ($dpi in @(96,120,144,192)) {
-        Render-Content $window $case.width ($case.height-40) $dpi (Join-Path $out ($case.project+'-'+$dpi+'.png'))
+        Render-Content $window $case.width ($case.height-40) $dpi (Join-Path $out ($renderName+'-'+$dpi+'.png'))
         $root=$window.Content
         $point=$ok.TransformToAncestor($root).Transform([Windows.Point]::new(0,0))
         if ($point.Y -lt 0 -or $point.Y+$ok.ActualHeight -gt $case.height-40 -or $point.X+$ok.ActualWidth -gt $case.width) {throw ('Footer clipped: '+$case.project)}
@@ -108,11 +150,27 @@ foreach ($case in $cases) {
     }
     # Узкое низкое окно и многострочная ошибка: кнопки должны оставаться доступны.
     $validationText=$window.FindName('ValidationMessage');$validationText.Text='Проверьте введённые значения. Длинное объяснение ошибки должно переноситься и оставлять обе кнопки доступными.';$validationText.Visibility='Visible'
-    Render-Content $window 440 360 96 (Join-Path $out ($case.project+'-compact-error.png'))
+    Render-Content $window 440 360 96 (Join-Path $out ($renderName+'-compact-error.png'))
     $point=$cancel.TransformToAncestor($window.Content).Transform([Windows.Point]::new(0,0))
     if ($point.Y -lt 0 -or $point.Y+$cancel.ActualHeight -gt 360 -or $point.X+$cancel.ActualWidth -gt 440) {throw ('Compact error footer clipped: '+$case.project)}
     $window.Close()
 }
+
+foreach($dpi in @(96,120,144,192)) {Render-Content $elementDialog 1080 810 $dpi (Join-Path $out ('ElementViews-compiled-'+$dpi+'.png'))}
+$elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$elementDialog.FindName('BodyScroll').ScrollToBottom()
+Render-Content $elementDialog 1080 810 96 (Join-Path $out 'ElementViews-sheets-96.png')
+$elementDialog.FindName('ParameterComboBox').SelectedIndex=0
+$elementDialog.GetType().GetMethod('Ok_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@($null,[Windows.RoutedEventArgs]::new()))
+if ($elementDialog.FindName('ValidationMessage').Text -notmatch 'параметр') {throw 'Unique filter without parameter must fail inline'}
+$elementDialog.FindName('UniqueCheckBox').IsChecked=$false
+$elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
+if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 50 из 50') {throw 'Unchecked unique filter must retain all elements'}
+$elementDialog.Close()
+$creation=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.CreationResult'));$creation.Completed=17;$creation.Views=51;$creation.Sheets=17;$creation.Filtered=33
+$elementReport=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ReportWindow'),[object[]]@($creation))
+if ($elementReport.FindName('SkippedGrid').Visibility -ne 'Collapsed' -or $elementReport.FindName('SummaryText').Text -notmatch '51') {throw 'Element-view success summary regression'}
+$elementReport.Close()
 # Реальный конструктор и обработчики скомпилированного окна без обращения к документу Revit.
 $type=$assemblies['ViewNumberingPlugin'].GetType('ViewNumberingPlugin.NumberingDialog',$true)
 $dialog=[Activator]::CreateInstance($type)
@@ -182,4 +240,4 @@ $report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetCo
 if ($report.FindName('ResultsGrid').Items.Count -ne 0 -or $report.FindName('ResultsGrid').Visibility -ne 'Collapsed' -or $report.FindName('SingleResult').Visibility -ne 'Collapsed' -or $report.FindName('SummaryText').Text -cne 'Изменено: 1. Пропущено: 0.') {throw 'All-success report must show totals without rows'}
 Render-Content $report $report.Width ($report.Height-40) 96 (Join-Path $out 'AreaReinforcementHosts-success.png')
 $report.Close()
-"PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation UI checks. Revit not launched."
+"PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation/element-view UI checks. Revit not launched."

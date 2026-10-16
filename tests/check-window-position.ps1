@@ -64,4 +64,4 @@ try {
   if ([math]::Abs(($actual.Left+$actual.Right)/2.0-($work.Left+$work.Right)/2.0) -gt 1 -or [math]::Abs(($actual.Top+$actual.Bottom)/2.0-($work.Top+$work.Bottom)/2.0) -gt 1) {throw 'Native hidden dialog did not center on owner monitor'}
  } finally {if($previous -ne [IntPtr]::Zero){[void][ArvPlacementProbe]::SetThreadDpiAwarenessContext($previous)}}
 } finally {$child.Close();$owner.Close()}
-"PASS: 8 centered work-area calculations; 11 dialogs use shared manual placement; native placement verified with hidden test windows and displaced owner. Revit not used; real Revit/mixed-DPI monitor scenarios remain manual."
+"PASS: 8 centered work-area calculations; $($casesList.Count) dialogs use shared manual placement; native placement verified with hidden test windows and displaced owner. Revit not used; real Revit/mixed-DPI monitor scenarios remain manual."

@@ -27,6 +27,7 @@ public static class AlgorithmTests
         Check(new[] { "Я_разрез", "б_разрез", "А_разрез" }.OrderBy(s => s, Algorithms.NameComparer).SequenceEqual(new[] { "А_разрез", "б_разрез", "Я_разрез" }), "Russian name order");
         Check(Algorithms.NameComparer.Compare("Вид", "вид") == 0, "case insensitive view order");
         AreaHostMathTests.Run(Check);
+        ElementViewTests.Run(Check);
         Console.WriteLine("PASS: " + count + " algorithm regression checks");
         return 0;
     }

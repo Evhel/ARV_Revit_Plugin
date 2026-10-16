@@ -11,6 +11,8 @@
     <Compile Include="AlgorithmTests.cs"/>
     <Compile Include="..\src\AreaReinforcementHosts\HostMatchingMath.cs"><Link>AreaHosts\HostMatchingMath.cs</Link></Compile>
     <Compile Include="AreaHostMathTests.cs"/>
+    <Compile Include="ElementViewTests.cs"/>
+    <Compile Include="..\src\ElementViews\ElementViewMath.cs"><Link>ElementViews\ElementViewMath.cs</Link></Compile>
     <Compile Include="..\src\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>

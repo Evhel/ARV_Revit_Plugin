@@ -88,5 +88,23 @@
     "width": 880,
     "height": 382,
     "report": true
+  },
+  {
+    "project": "ElementViews",
+    "file": "MainWindow.xaml",
+    "cls": "ARV.ElementViews.MainWindow",
+    "title": "Создать виды элемента",
+    "width": 1080,
+    "height": 850
+  },
+  {
+    "project": "ElementViews",
+    "file": "ReportWindow.xaml",
+    "cls": "ARV.ElementViews.ReportWindow",
+    "title": "Виды элемента — итоги",
+    "width": 780,
+    "height": 460,
+    "report": true,
+    "renderName": "ElementViewsReport"
   }
 ]
