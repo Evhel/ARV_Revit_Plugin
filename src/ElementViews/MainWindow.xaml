@@ -42,16 +42,25 @@
 <TextBlock Text="Префикс названия листа" Style="{StaticResource Arv.FieldLabel}" Margin="0,12,0,4"/><TextBox x:Name="SheetPrefixTextBox" Text="Элемент " Style="{StaticResource Arv.TextBox}" TextChanged="SheetNameChanged"/>
 <TextBlock Text="Суффикс названия листа" Style="{StaticResource Arv.FieldLabel}" Margin="0,12,0,4"/><TextBox x:Name="SheetSuffixTextBox" Style="{StaticResource Arv.TextBox}" TextChanged="SheetNameChanged"/>
 <TextBlock x:Name="SheetNamePreview" Style="{StaticResource Arv.HelpText}" Margin="0,8,0,0"/>
+<Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<StackPanel Margin="0,0,8,0"><TextBlock Text="Слева, мм" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetLeftTextBox" Text="20" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,8,0"><TextBlock Text="Сверху, мм" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetTopTextBox" Text="20" Style="{StaticResource Arv.TextBox}"/></StackPanel>
+<StackPanel Grid.Column="2"><TextBlock Text="Зазор видов, мм" Style="{StaticResource Arv.FieldLabel}"/><TextBox x:Name="SheetGapTextBox" Text="10" Style="{StaticResource Arv.TextBox}"/></StackPanel></Grid>
 <TextBlock Text="Заголовок отображает выбранный тип экрана. Дополнительный текст на листе не создаётся." Style="{StaticResource Arv.HelpText}" Margin="0,20,0,0"/>
 </StackPanel>
 <StackPanel Grid.Column="1">
 <CheckBox x:Name="UseLayoutCheckBox" Content="Размещать по схеме листа" Margin="0,0,0,8"/>
 <StackPanel IsEnabled="{Binding IsChecked,ElementName=UseLayoutCheckBox}">
 <StackPanel Orientation="Horizontal"><TextBlock Text="Строки" VerticalAlignment="Center" Margin="0,0,8,0"/><ComboBox x:Name="LayoutRowsCombo" Width="52" SelectionChanged="LayoutSizeChanged"/><TextBlock Text="Столбцы" VerticalAlignment="Center" Margin="12,0,8,0"/><ComboBox x:Name="LayoutColumnsCombo" Width="52" SelectionChanged="LayoutSizeChanged"/><Button Content="Заполнить по порядку" Style="{StaticResource Arv.Button}" Click="FillLayout_Click" Margin="12,0,0,0"/></StackPanel>
-<Border Background="#EEEAF2" Padding="8" Margin="0,8,0,0"><Border BorderBrush="#8A8490" BorderThickness="1" Background="White" Height="210"><Grid x:Name="LayoutGrid" Margin="8"/></Border></Border>
-<TextBlock Text="Впишите № видов из таблицы. Пустая ячейка свободна. Каждый включённый вид — один раз. Размещение по центрам ячеек; слишком большой вид сохраняется за листом." Style="{StaticResource Arv.HelpText}" Margin="0,8,0,0"/>
+<Border Background="#EEEAF2" Padding="8" Margin="0,8,0,0"><Border BorderBrush="#25202A" BorderThickness="2" Background="White" Height="210"><Grid><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition Height="*"/><RowDefinition Height="30"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/></Grid.ColumnDefinitions>
+<TextBlock Grid.Column="1" Text="{Binding Text,ElementName=SheetTopTextBox,StringFormat='↓ Сверху: {0} мм'}" Foreground="#57007F" FontSize="11" VerticalAlignment="Center"/>
+<TextBlock Grid.Row="1" Text="{Binding Text,ElementName=SheetLeftTextBox,StringFormat='← Слева: {0} мм'}" Foreground="#57007F" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock.LayoutTransform><RotateTransform Angle="-90"/></TextBlock.LayoutTransform></TextBlock>
+<Border Grid.Row="1" Grid.Column="1" BorderBrush="#B597C4" BorderThickness="1,1,0,0"><Grid x:Name="LayoutGrid" Margin="3"/></Border>
+<Border Grid.Row="2" Grid.Column="1" BorderBrush="#25202A" BorderThickness="1" Width="170" Height="23" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,3"><Grid><Grid.RowDefinitions><RowDefinition Height="6"/><RowDefinition Height="*"/></Grid.RowDefinitions><Border BorderBrush="#25202A" BorderThickness="0,0,0,1"/><TextBlock Grid.Row="1" Text="Основная надпись" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+</Grid></Border></Border>
+<TextBlock Text="№ задают порядок: один столбец — общая ось X, сверху вниз — с заданным зазором. Размеры берутся по видам и их заголовкам. Каждый вид укажите один раз. Пустые ячейки не резервируют место." Style="{StaticResource Arv.HelpText}" Margin="0,8,0,0"/>
 </StackPanel></StackPanel></Grid>
-<TextBlock x:Name="SheetHelp" Text="Не поместившиеся виды сохраняются за правой границей листа. Поля: 20 мм, снизу 55 мм; номера ARV-0001 и далее. Схема — условная, размеры видов на ней не показаны." Style="{StaticResource Arv.HelpText}" Margin="0,12,0,0"/>
+<TextBlock x:Name="SheetHelp" Text="Схема показывает порядок, а не размеры. Поля слева и сверху и зазор задаются в мм; справа 20 мм, снизу 55 мм. Основная надпись условная. При выходе за лист виды сохраняют своё место по схеме." Style="{StaticResource Arv.HelpText}" Margin="0,12,0,0"/>
 </StackPanel></TabItem></TabControl>
 </StackPanel></ScrollViewer>
 <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16"><StackPanel><TextBlock x:Name="ValidationMessage" TextWrapping="Wrap" Foreground="{StaticResource Arv.Error}" Visibility="Collapsed" Margin="0,0,0,12"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="OkButton" Content="Создать" Style="{StaticResource Arv.PrimaryButton}" MinWidth="128" Click="Ok_Click" IsDefault="True"/><Button x:Name="CancelButton" Content="Отмена" Style="{StaticResource Arv.Button}" MinWidth="100" Margin="8,0,0,0" Click="Cancel_Click" IsCancel="True"/></StackPanel></StackPanel></Border>

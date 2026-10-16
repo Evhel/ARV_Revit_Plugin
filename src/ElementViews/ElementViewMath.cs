@@ -87,21 +87,33 @@ namespace ARV.ElementViews
             if(used.Distinct().Count()!=used.Length)throw new ArgumentException("Каждый вид должен встречаться в схеме только один раз.");
             if(numbers.Any(n=>!used.Contains(n)))throw new ArgumentException("Укажите в схеме каждый включённый вид или нажмите «Заполнить по порядку».");
         }
-        public static List<PaperRect> PackGrid(IList<PaperRect> sizes,int[] numbers,int[] cells,int rows,int columns,double width,double height,double gap,double overflowX)
+        // Horizontal extents are symmetric about the viewport frame, including its label.
+        public static PaperRect FrameAlignedBounds(PaperRect bounds,double frameCenterX)
+        {
+            double half=Math.Max(frameCenterX-bounds.X,bounds.X+bounds.Width-frameCenterX);
+            return new PaperRect(frameCenterX-half,bounds.Y,2*half,bounds.Height);
+        }
+        public static List<PaperRect> PackByContent(IList<PaperRect> sizes,int[] numbers,int[] cells,int rows,int columns,double gap)
         {
             ValidateLayout(cells,rows,columns,numbers);
-            if(sizes.Count!=numbers.Length||width<=0||height<=0||gap<0||overflowX<=width)throw new ArgumentException("Недопустимая область компоновки.");
-            double cellWidth=(width-(columns-1)*gap)/columns,cellHeight=(height-(rows-1)*gap)/rows,outsideY=0;
-            var result=new List<PaperRect>();
-            for(int i=0;i<sizes.Count;i++)
+            if(sizes.Count!=numbers.Length||gap<0||double.IsNaN(gap)||double.IsInfinity(gap))throw new ArgumentException("Недопустимые размеры или зазор компоновки.");
+            if(sizes.Any(s=>s.Width<=0||s.Height<=0||double.IsNaN(s.Width)||double.IsNaN(s.Height)||double.IsInfinity(s.Width)||double.IsInfinity(s.Height)))throw new ArgumentException("Недопустимый размер вида.");
+            var byNumber=numbers.Select((number,index)=>new{number,index}).ToDictionary(pair=>pair.number,pair=>pair.index);
+            var result=new PaperRect[sizes.Count];double left=0;
+            for(int column=0;column<columns;column++)
             {
-                var size=sizes[i];int cell=Array.IndexOf(cells,numbers[i]);
-                if(size.Width<=0||size.Height<=0||double.IsNaN(size.Width)||double.IsNaN(size.Height)||double.IsInfinity(size.Width)||double.IsInfinity(size.Height))throw new ArgumentException("Недопустимый размер вида.");
-                if(size.Width>cellWidth+1e-8||size.Height>cellHeight+1e-8)
-                {result.Add(new PaperRect(overflowX,outsideY,size.Width,size.Height));outsideY+=size.Height+gap;}
-                else result.Add(new PaperRect((cell%columns)*(cellWidth+gap)+(cellWidth-size.Width)/2,(cell/columns)*(cellHeight+gap)+(cellHeight-size.Height)/2,size.Width,size.Height));
+                var indices=Enumerable.Range(0,rows).Select(row=>cells[row*columns+column]).Where(n=>n!=0).Select(n=>byNumber[n]).ToList();
+                if(indices.Count==0)continue;
+                double width=indices.Max(i=>sizes[i].Width),top=0;
+                foreach(int index in indices)
+                {
+                    var size=sizes[index];
+                    result[index]=new PaperRect(left+(width-size.Width)/2,top,size.Width,size.Height);
+                    top+=size.Height+gap;
+                }
+                left+=width+gap;
             }
-            return result;
+            return result.ToList();
         }
         public static List<PaperRect> PackPreserving(IList<PaperRect> sizes,double width,double height,double gap,double overflowX)
         {

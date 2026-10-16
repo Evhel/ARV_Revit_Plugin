@@ -191,7 +191,9 @@ $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $elementDialog.FindName('UseLayoutCheckBox').IsChecked=$true
 $layoutGrid=$elementDialog.FindName('LayoutGrid')
 $layoutGrid.Children[0].Text='7';$layoutGrid.Children[1].Text='4';$layoutGrid.Children[2].Text='1'
+$elementDialog.FindName('SheetLeftTextBox').Text='25';$elementDialog.FindName('SheetTopTextBox').Text='30';$elementDialog.FindName('SheetGapTextBox').Text='12'
 $built=$elementDialog.BuildOptions()
+if($built.SheetLeftMm -ne 25 -or $built.SheetTopMm -ne 30 -or $built.SheetGapMm -ne 12){throw 'Sheet margins or gap not transferred to options'}
 if($built.LayoutCells[0] -ne 7 -or $built.Views[0].TitleSuffix -cne 'Разрез' -or $built.Views[0].Number -ne 1) {throw 'Grid layout or sheet title lost in options'}
 $layoutGrid.Children[1].Text='7';$duplicateRejected=$false
 try{$null=$elementDialog.BuildOptions()}catch{$duplicateRejected=$true}
@@ -206,10 +208,11 @@ $loaded=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$settin
 $elementDialog.Rows[0].Prefix='changed';$elementDialog.Rows[0].TemplateId=2;$elementDialog.Rows[0].ViewportTypeId=-1
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].Prefix -cne 'КЖ3_Арм_Пилон_' -or $elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.Rows[0].ViewportTypeId -ne 22){throw 'Settings round-trip lost names or selections'}
+if($loaded.SheetLeft -cne '25' -or $loaded.SheetTop -cne '30' -or $loaded.SheetGap -cne '12'){throw 'Sheet margin/gap JSON round-trip lost'}
 if($loaded.LayoutCells[0] -ne 7 -or $loaded.Rows[0].TitleSuffix -cne 'Разрез' -or -not $loaded.UseLayout){throw 'Grid/title settings round-trip lost'}
 $legacy=$elementDialog.CaptureSettings();$legacy.Version=1;$legacy.UseLayout=$false;$legacy.LayoutCells=$null
 $elementDialog.ApplySettings($legacy)
-if($elementDialog.Rows[0].TemplateId -ne 4){throw 'Legacy 1.5.1 settings must remain loadable'}
+if($elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.FindName('SheetLeftTextBox').Text -cne '20' -or $elementDialog.FindName('SheetGapTextBox').Text -cne '10'){throw 'Legacy settings must remain loadable with default sheet margins/gap'}
 $elementDialog.ApplySettings($loaded)
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=-1;$elementDialog.FindName('ParameterComboBox').Text='Марка'
 $typed=$elementDialog.BuildOptions()
@@ -221,6 +224,13 @@ $elementDialog.FindName('UniqueCheckBox').IsChecked=$true
 $invalidLayout=$elementDialog.CaptureSettings();$invalidLayout.LayoutCells[1]=7;$invalidLayout.Rows[0].Prefix='must not apply';$oldPrefix=$elementDialog.Rows[0].Prefix;$invalidRejected=$false
 try{$elementDialog.ApplySettings($invalidLayout)}catch{$invalidRejected=$true}
 if(-not $invalidRejected -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Invalid saved grid partially overwrote settings'}
+$invalidMargins=$elementDialog.CaptureSettings();$invalidMargins.SheetGap='-1';$oldGap=$elementDialog.FindName('SheetGapTextBox').Text;$invalidRejected=$false
+try{$elementDialog.ApplySettings($invalidMargins)}catch{$invalidRejected=$true}
+if(-not $invalidRejected -or $elementDialog.FindName('SheetGapTextBox').Text -cne $oldGap){throw 'Invalid saved sheet gap partially overwrote settings'}
+$elementDialog.FindName('SheetGapTextBox').Text='wrong';$invalidRejected=$false
+try{$null=$elementDialog.BuildOptions()}catch{$invalidRejected=$true}
+if(-not $invalidRejected){throw 'Invalid sheet gap accepted'}
+$elementDialog.FindName('SheetGapTextBox').Text=$oldGap
 $loaded.Rows[0].Template.Id=99999
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].TemplateId -ne 4) {throw 'Saved reference must resolve by name in another project'}
@@ -231,6 +241,7 @@ $oldPrefix=$elementDialog.Rows[0].Prefix;$loaded.Rows[0].Template.Name='Missing 
 try {$elementDialog.ApplySettings($loaded)}catch{$failed=$true}
 if(-not $failed -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Missing saved template must not partially overwrite the form'}
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$layoutGrid.Children[0].Text='1';$layoutGrid.Children[1].Text='7';$layoutGrid.Children[2].Text='';$layoutGrid.Children[3].Text='4'
 $elementDialog.FindName('BodyScroll').ScrollToBottom()
 $elementDialog.FindName('SettingsTabs').SelectedIndex=1
 foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-sheets-'+$dpi+'.png'))}

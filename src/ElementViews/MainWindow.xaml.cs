@@ -86,6 +86,7 @@ namespace ARV.ElementViews
             if(options.CreateSheet)
             {
                 if(!(TitleBlockComboBox.SelectedItem is Choice block)) throw new ArgumentException("Выберите основную надпись.");
+                options.SheetLeftMm=MarginValue(SheetLeftTextBox.Text,"лист слева");options.SheetTopMm=MarginValue(SheetTopTextBox.Text,"лист сверху");options.SheetGapMm=MarginValue(SheetGapTextBox.Text,"зазор видов");
                 options.TitleBlockId=block.Id;ElementViewMath.Name(options.SheetPrefix,Rows[0].Token,options.SheetSuffix);
                 if(options.UseLayout) ElementViewMath.ValidateLayout(options.LayoutCells,options.LayoutRows,options.LayoutColumns,options.Views.Select(v=>v.Number).ToArray());
             }
@@ -94,6 +95,7 @@ namespace ARV.ElementViews
         public UserSettings CaptureSettings()
         {
             return new UserSettings{Unique=UniqueCheckBox.IsChecked==true,CreateSheet=CreateSheetCheckBox.IsChecked==true,UseLayout=UseLayoutCheckBox.IsChecked==true,LayoutRows=LayoutRowsCombo.SelectedItem is int lr?lr:2,LayoutColumns=LayoutColumnsCombo.SelectedItem is int lc?lc:3,LayoutCells=ReadLayout(),
+                SheetLeft=SheetLeftTextBox.Text,SheetTop=SheetTopTextBox.Text,SheetGap=SheetGapTextBox.Text,
                 Side=SideTextBox.Text,Above=AboveTextBox.Text,Below=BelowTextBox.Text,PlanPadding=PlanPaddingTextBox.Text,SheetPrefix=SheetPrefixTextBox.Text,SheetSuffix=SheetSuffixTextBox.Text,
                 Parameter=SavedChoice.From(SelectedParameter()),SectionType=SavedChoice.From(SectionTypeComboBox.SelectedItem as Choice),TitleBlock=SavedChoice.From(TitleBlockComboBox.SelectedItem as Choice),
                 Rows=Rows.Select(row=>new SavedRow{Label=row.Label,TitleSuffix=row.TitleSuffix,Enabled=row.Enabled,Prefix=row.Prefix,Suffix=row.Suffix,Offset=row.OffsetText,
@@ -113,11 +115,14 @@ namespace ARV.ElementViews
             }).ToList();
             if(saved.UseLayout && saved.CreateSheet)
                 ElementViewMath.ValidateLayout(saved.LayoutCells,saved.LayoutRows,saved.LayoutColumns,resolved.Where(row=>row.Saved.Enabled).Select(row=>row.Target.Number).ToArray());
+            string sheetLeft=saved.Version<3?"20":saved.SheetLeft,sheetTop=saved.Version<3?"20":saved.SheetTop,sheetGap=saved.Version<3?"10":saved.SheetGap;
+            MarginValue(sheetLeft,"лист слева");MarginValue(sheetTop,"лист сверху");MarginValue(sheetGap,"зазор видов");
             ParameterComboBox.SelectedItem=parameter;SectionTypeComboBox.SelectedItem=section;TitleBlockComboBox.SelectedItem=block;
             UniqueCheckBox.IsChecked=saved.Unique;CreateSheetCheckBox.IsChecked=saved.CreateSheet;UseLayoutCheckBox.IsChecked=saved.UseLayout;
             LayoutRowsCombo.SelectedItem=saved.LayoutRows>=1&&saved.LayoutRows<=4?saved.LayoutRows:2;LayoutColumnsCombo.SelectedItem=saved.LayoutColumns>=1&&saved.LayoutColumns<=4?saved.LayoutColumns:3;
             SetLayout(saved.LayoutCells);
             SideTextBox.Text=saved.Side;AboveTextBox.Text=saved.Above;BelowTextBox.Text=saved.Below;PlanPaddingTextBox.Text=saved.PlanPadding;
+            SheetLeftTextBox.Text=sheetLeft;SheetTopTextBox.Text=sheetTop;SheetGapTextBox.Text=sheetGap;
             SheetPrefixTextBox.Text=saved.SheetPrefix;SheetSuffixTextBox.Text=saved.SheetSuffix;
             foreach(var row in resolved)
             {row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??-1;}

@@ -77,6 +77,7 @@ namespace ARV.ElementViews
         public int[] LayoutCells;
         public int SectionTypeId,TitleBlockId;
         public double SideMm,AboveMm,BelowMm,PlanPaddingMm;
+        public double SheetLeftMm=20,SheetTopMm=20,SheetGapMm=10;
         public List<ViewRequest> Views=new List<ViewRequest>();
     }
     public sealed class SkippedElement

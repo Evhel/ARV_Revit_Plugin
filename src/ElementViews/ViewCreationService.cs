@@ -104,7 +104,7 @@ namespace ARV.ElementViews
                                     {
                                         int overflow=Place(doc,sheet,created,options);
                                         if(stage.Commit()!=TransactionStatus.Committed) throw new InvalidOperationException("Не подтверждено размещение.");
-                                        if(overflow>0) warnings.Add("Виды и лист сохранены. За правой границей листа размещено видов: "+overflow+". Расположите их вручную.");
+                                        if(overflow>0) warnings.Add("Виды и лист сохранены. За полезную область листа выходит видов: "+overflow+". При размещении по схеме порядок и оси сохранены; поправьте компоновку вручную.");
                                     }
                                     catch(Autodesk.Revit.Exceptions.RegenerationFailedException) {throw;}
                                     catch(Exception ex)
@@ -138,12 +138,12 @@ namespace ARV.ElementViews
         {
             internal Viewport Port;
         }
-        private static PaperRect Extents(PlacedView placed,ViewSheet sheet)
+        private static PaperRect Extents(PlacedView placed)
         {
             var box=placed.Port.GetBoxOutline();double x=box.MinimumPoint.X,y=box.MinimumPoint.Y,right=box.MaximumPoint.X,top=box.MaximumPoint.Y;
             var label=placed.Port.GetLabelOutline();
             if(!label.IsEmpty) {x=Math.Min(x,label.MinimumPoint.X);y=Math.Min(y,label.MinimumPoint.Y);right=Math.Max(right,label.MaximumPoint.X);top=Math.Max(top,label.MaximumPoint.Y);}
-            return new PaperRect(x,y,right-x,top-y);
+            return ElementViewMath.FrameAlignedBounds(new PaperRect(x,y,right-x,top-y),placed.Port.GetBoxCenter().X);
         }
         private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options)
         {
@@ -164,15 +164,15 @@ namespace ARV.ElementViews
                 ports.Add(new PlacedView{Port=port});
             }
             doc.Regenerate();
-            var bounds=ports.Select(port=>Extents(port,sheet)).ToList();
+            var bounds=ports.Select(port=>Extents(port)).ToList();
             var sheetBox=sheet.Outline;
-            double margin=20/304.8,bottom=55/304.8,gap=10/304.8;
-            double left=sheetBox.Min.U+margin,top=sheetBox.Max.V-margin;
-            double width=sheetBox.Max.U-margin-left,height=top-(sheetBox.Min.V+bottom);
+            double rightMargin=20/304.8,bottom=55/304.8,gap=options.SheetGapMm/304.8;
+            double left=sheetBox.Min.U+options.SheetLeftMm/304.8,top=sheetBox.Max.V-options.SheetTopMm/304.8;
+            double width=sheetBox.Max.U-rightMargin-left,height=top-(sheetBox.Min.V+bottom);
             var positions=options.UseLayout
-                ?ElementViewMath.PackGrid(bounds,options.Views.Select(v=>v.Number).ToArray(),options.LayoutCells,options.LayoutRows,options.LayoutColumns,width,height,gap,sheetBox.Max.U-left+gap)
+                ?ElementViewMath.PackByContent(bounds,options.Views.Select(v=>v.Number).ToArray(),options.LayoutCells,options.LayoutRows,options.LayoutColumns,gap)
                 :ElementViewMath.PackPreserving(bounds,width,height,gap,sheetBox.Max.U-left+gap);
-            int overflow=positions.Count(position=>position.X>=width);
+            int overflow=positions.Count(position=>position.X+position.Width>width+1e-8 || position.Y+position.Height>height+1e-8);
             for(int i=0;i<ports.Count;i++)
             {
                 var b=bounds[i];var target=positions[i];
