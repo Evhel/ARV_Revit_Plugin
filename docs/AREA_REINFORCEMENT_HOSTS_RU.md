@@ -1,4 +1,4 @@
-# Смена основы армирования по площади — 1.4.0
+﻿# Смена основы армирования по площади — 1.4.1
 
 Две кнопки находятся на вкладке **ARV → Армирование**. Работают с AreaReinforcement в текущем проекте Revit 2022. Отдельная DLL — AreaReinforcementHosts.dll; дополнительный .addin не нужен.
 
@@ -65,3 +65,9 @@
 [Проект Visual Studio](../src/AreaReinforcementHosts/AreaReinforcementHosts.csproj), [команды](../src/AreaReinforcementHosts/Commands.cs), [поиск стен](../src/AreaReinforcementHosts/HostGeometry.cs), [снимок настроек](../src/AreaReinforcementHosts/AreaSnapshot.cs), [замена с откатом](../src/AreaReinforcementHosts/RehostService.cs).
 
 Сигнатуры сверены с XML-документацией установленного RevitAPI 22.0.0.0. Принцип пересоздания через контур соответствует [официальному руководству Autodesk](https://help.autodesk.com/cloudhelp/2024/PTB/Revit-API/files/Revit_API_Developers_Guide/Discipline_Specific_Functionality/Structural_Engineering/Structural_Model_Elements/Reinforcement/Revit_API_Revit_API_Developers_Guide_Discipline_Specific_Functionality_Structural_Engineering_Structural_Model_Elements_Reinforcement_Area_and_Path_Reinforcement_html.html); руководство более новой версии не используется как основание наличия методов в Revit 2022.
+
+## Исправление 1.4.1
+
+Исправлен конфликт имён двух кнопок. При восстановлении параметров сначала применяются настройки слоёв, затем зависимые поля и соответствие слоёв; значение проверяется после записи и регенерации. Одиночный отчёт открывается компактной карточкой 620×380 DIP.
+
+Ручная проверка: после перезапуска Revit видны обе кнопки без сообщения «13 из 14». Повторить одиночную замену из скриншота, затем сравнить типы стержней, шаг, активность и соответствие слоёв со старой зоной; проверить также разные настройки верхних/нижних слоёв и массовую замену. Несохранённые настройки должны приводить к откату конкретной зоны.

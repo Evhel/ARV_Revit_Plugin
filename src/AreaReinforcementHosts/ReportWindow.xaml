@@ -1,5 +1,5 @@
-<?xml version="1.0" ?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ARV.AreaReinforcementHosts.ReportWindow" Title="ARV — Основы армирования" Width="940" Height="620" MinWidth="440" MinHeight="300" WindowStartupLocation="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
+﻿<?xml version="1.0" ?>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ARV.AreaReinforcementHosts.ReportWindow" Title="ARV — Основы армирования" Width="880" Height="400" MinWidth="440" MinHeight="300" WindowStartupLocation="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False" Style="{DynamicResource Arv.DialogWindow}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -27,6 +27,13 @@
         <ScrollViewer x:Name="BodyScroll" Grid.Row="1" Padding="24,0,24,16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
             <StackPanel>
                 <TextBlock x:Name="SummaryText" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                <Border x:Name="SingleResult" Visibility="Collapsed" Background="White" BorderBrush="{StaticResource Arv.Border}" BorderThickness="1" Padding="16" CornerRadius="4">
+                    <StackPanel>
+                        <TextBlock x:Name="SingleStatus" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="SingleIds" Style="{StaticResource Arv.HelpText}" Margin="0,6,0,12"/>
+                        <TextBlock x:Name="SingleDetail" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
                 <DataGrid x:Name="ResultsGrid" Height="300" Style="{StaticResource Arv.DataGrid}" ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Resources>
                         <Style TargetType="TextBlock">
@@ -41,7 +48,7 @@
                         <DataGridTextColumn Header="Подробности" Binding="{Binding Detail}" Width="*" MinWidth="250"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                <TextBlock Text="При пересоздании меняется ID. Старые марки и размеры могут удалиться или потерять связь. Армирования с ошибкой оставлены без изменений." Style="{StaticResource Arv.HelpText}" Margin="0,16,0,0"/>
+                <TextBlock x:Name="ConsequenceText" Text="При пересоздании меняется ID. Старые марки и размеры могут удалиться или потерять связь. Армирования с ошибкой оставлены без изменений." Style="{StaticResource Arv.HelpText}" Margin="0,16,0,0"/>
             </StackPanel>
         </ScrollViewer>
         <Border Grid.Row="2" BorderBrush="{StaticResource Arv.Border}" BorderThickness="0,1,0,0" Background="White" Padding="24,16">

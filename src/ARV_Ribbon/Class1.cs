@@ -50,7 +50,7 @@ namespace ARV_Ribbon
                 string path = Path.Combine(PluginsFolder, assembly + ".dll");
                 if (!File.Exists(path)) throw new FileNotFoundException("Отсутствует DLL", path);
                 var panel = app.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == panelName) ?? app.CreateRibbonPanel(TabName, panelName);
-                var data = new PushButtonData(assembly, label, path, command) { ToolTip = tooltip, AvailabilityClassName = availability };
+                var data = new PushButtonData(assembly + "." + command, label, path, command) { ToolTip = tooltip, AvailabilityClassName = availability };
                 string icon = Path.Combine(PluginsFolder, iconName);
                 if (!File.Exists(icon)) icon = Path.Combine(PluginsFolder, "Images", iconName);
                 if (File.Exists(icon))

@@ -6,98 +6,6 @@ using Autodesk.Revit.DB.Structure;
 
 namespace ARV.AreaReinforcementHosts
 {
-    internal sealed class ParameterValue
-    {
-        internal int ParameterId;
-        internal string Name;
-        internal StorageType Storage;
-        internal object Value;
-        internal ElementId Global;
-
-        internal static List<ParameterValue> Read(Element element)
-        {
-            var values = new List<ParameterValue>();
-            foreach (Parameter p in element.Parameters)
-            {
-                if (!p.HasValue || p.StorageType == StorageType.None) continue;
-                var global = p.GetAssociatedGlobalParameter();
-                if (p.IsReadOnly && global == ElementId.InvalidElementId) continue;
-                object value;
-                switch (p.StorageType)
-                {
-                    case StorageType.Double: value = p.AsDouble(); break;
-                    case StorageType.Integer: value = p.AsInteger(); break;
-                    case StorageType.ElementId: value = p.AsElementId(); break;
-                    default: value = p.AsString() ?? ""; break;
-                }
-                values.Add(new ParameterValue { ParameterId = p.Id.IntegerValue, Name = p.Definition.Name, Storage = p.StorageType, Value = value, Global = global });
-            }
-            return values;
-        }
-
-        private Parameter Get(Element element)
-        {
-            var p = ParameterId < 0 ? element.get_Parameter((BuiltInParameter)ParameterId) :
-                element.Parameters.Cast<Parameter>().SingleOrDefault(value => value.Id.IntegerValue == ParameterId);
-            if (p == null || p.StorageType != Storage)
-                throw new InvalidOperationException("Не найден параметр «" + Name + "» нового армирования.");
-            return p;
-        }
-
-        private bool Equal(Parameter p)
-        {
-            switch (Storage)
-            {
-                case StorageType.Double: return Math.Abs(p.AsDouble() - (double)Value) <= 1e-8;
-                case StorageType.Integer: return p.AsInteger() == (int)Value;
-                case StorageType.ElementId: return p.AsElementId() == (ElementId)Value;
-                default: return (p.AsString() ?? "") == (string)Value;
-            }
-        }
-
-        internal bool TryApply(Element element)
-        {
-            var p = Get(element);
-            if (!Equal(p))
-            {
-                if (p.IsReadOnly) return false;
-                bool set;
-                switch (Storage)
-                {
-                    case StorageType.Double: set = p.Set((double)Value); break;
-                    case StorageType.Integer: set = p.Set((int)Value); break;
-                    case StorageType.ElementId: set = p.Set((ElementId)Value); break;
-                    default: set = p.Set((string)Value); break;
-                }
-                if (!set) throw new InvalidOperationException("Не удалось сохранить «" + Name + "».");
-            }
-            if (Global != ElementId.InvalidElementId && p.GetAssociatedGlobalParameter() != Global)
-                p.AssociateWithGlobalParameter(Global);
-            return true;
-        }
-
-        internal static void ApplyAll(IEnumerable<ParameterValue> values, Element element)
-        {
-            // Режим раскладки/активность слоя могут разблокировать остальные поля.
-            var pending = values.ToList();
-            while (pending.Count > 0)
-            {
-                int before = pending.Count;
-                foreach (var value in pending.ToList())
-                    if (value.TryApply(element)) pending.Remove(value);
-                if (pending.Count == before)
-                    throw new InvalidOperationException("Не удалось сохранить параметр «" + pending[0].Name + "»: поле заблокировано новой основой.");
-            }
-        }
-
-        internal void Verify(Element element)
-        {
-            var p = Get(element);
-            if (!Equal(p) || (Global != ElementId.InvalidElementId && p.GetAssociatedGlobalParameter() != Global))
-                throw new InvalidOperationException("После смены основы изменился параметр «" + Name + "».");
-        }
-    }
-
     internal sealed class BoundaryEdge
     {
         internal Curve Curve;
@@ -207,8 +115,9 @@ namespace ARV.AreaReinforcementHosts
 
         internal void Apply(Document doc, AreaReinforcement target)
         {
-            ParameterValue.ApplyAll(Parameters, target);
             foreach (var layer in Layers) target.SetLayerActive(layer.Active, layer.Type);
+            doc.Regenerate();
+            ParameterValue.ApplyAll(Parameters, target);
             doc.Regenerate();
             var edges = target.GetBoundaryCurveIds().Select(id => (AreaReinforcementCurve)doc.GetElement(id)).ToList();
             if (edges.Count != Boundary.Count) throw new InvalidOperationException("Изменилось число рёбер контура.");

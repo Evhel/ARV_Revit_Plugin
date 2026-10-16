@@ -75,6 +75,7 @@
     <ItemGroup>
         <Compile Include="Commands.cs"/>
         <Compile Include="AreaSnapshot.cs"/>
+        <Compile Include="ParameterValue.cs"/>
         <Compile Include="HostGeometry.cs"/>
         <Compile Include="HostMatchingMath.cs"/>
         <Compile Include="RehostService.cs"/>

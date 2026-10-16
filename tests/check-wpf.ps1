@@ -93,6 +93,7 @@ foreach ($case in $cases) {
         [void]$table.Rows.Add('10501','20901','20001','Изменено','Контур и настройки сохранены; верх контура выше стены.')
         [void]$table.Rows.Add('10502','—','—','Пропущено','Под нижней границей найдены несколько стен; исходное армирование сохранено.')
         $window.FindName('ResultsGrid').ItemsSource=$table.DefaultView
+        $window.FindName('ResultsGrid').Height=102
         $window.FindName('SummaryText').Text='Изменено: 1. Пропущено: 1.'
     }
     $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton'); if ($case.report) {$cancel=$ok}
@@ -154,10 +155,16 @@ $reportAssembly=$assemblies['AreaReinforcementHosts']
 $resultType=$reportAssembly.GetType('ARV.AreaReinforcementHosts.RehostResult')
 $listType=[Collections.Generic.List``1].MakeGenericType($resultType)
 $list=[Activator]::CreateInstance($listType)
-$result=[Activator]::CreateInstance($resultType);$result.Status='Изменено';$result.OldId='1';$result.NewId='2';$result.HostId='3';$result.Detail='Проверка отчёта без Revit'
+$result=[Activator]::CreateInstance($resultType);$result.Status='Пропущено';$result.OldId='1';$result.NewId='2';$result.HostId='3';$result.Detail='Не удалось сохранить параметр «Соответствие основных слоев верха и низа». Исходное армирование оставлено без изменений.'
 $list.Add($result)
 $reportArgs=New-Object object[] 2;$reportArgs[0]=$list;$reportArgs[1]='Проверка окна отчёта'
 $report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
 if ($report.FindName('SummaryText').Text -notmatch '1' -or $report.FindName('ResultsGrid').Items.Count -ne 1) {throw 'Area-host report regression'}
+if ($report.Width -gt 650 -or $report.Height -gt 400 -or $report.FindName('SingleResult').Visibility -ne 'Visible' -or $report.FindName('ResultsGrid').Visibility -ne 'Collapsed') {throw 'Single result must use a compact card'}
+foreach ($dpi in @(96,120,144,192)) { Render-Content $report $report.Width ($report.Height-40) $dpi (Join-Path $out ('AreaReinforcementHosts-single-'+$dpi+'.png')) }
+$report.Close()
+$list.Add($result)
+$report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
+if ($report.FindName('ResultsGrid').Visibility -ne 'Visible' -or $report.Height -ge 450) {throw 'Two-row report must remain compact'}
 $report.Close()
 "PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation UI checks. Revit not launched."

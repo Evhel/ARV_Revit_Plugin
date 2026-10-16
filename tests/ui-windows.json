@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "project": "WallStartSchedule",
     "file": "MainWindow.xaml",
@@ -85,8 +85,8 @@
     "file": "ReportWindow.xaml",
     "cls": "ARV.AreaReinforcementHosts.ReportWindow",
     "title": "Основы армирования",
-    "width": 940,
-    "height": 620,
+    "width": 880,
+    "height": 382,
     "report": true
   }
 ]

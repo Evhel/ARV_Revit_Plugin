@@ -1,10 +1,10 @@
 # ARV_Revit_Plugin — Revit 2022
 
-Версия 1.4.0. Windows x64, .NET Framework 4.8. Вкладка ARV: 14 кнопок в семи панелях.
+Версия 1.4.1. Windows x64, .NET Framework 4.8. Вкладка ARV: 14 кнопок в семи панелях.
 
 ## Установка
 
-Скачайте [готовый ZIP](dist/ARV_Revit_Plugin_Revit2022_v1.4.0.zip) и следуйте [инструкции](INSTALL_RU.md).
+Скачайте [готовый ZIP](dist/ARV_Revit_Plugin_Revit2022_v1.4.1.zip) и следуйте [инструкции](INSTALL_RU.md).
 
 При закрытом Revit скопируйте папку `ARV` и `ARV_Ribbon.addin` из архива в:
 
