@@ -29,7 +29,7 @@ namespace ARV.ElementViews
                 new ViewRow{Kind="Left",Label="Слева",OffsetText="—",Suffix="_Слева"},
                 new ViewRow{Kind="Right",Label="Справа",Enabled=true,OffsetText="—",Suffix="_Справа"}})
             {
-                row.Prefix="КЖ3_Арм_Пилон_";row.Templates=catalog.Templates;row.ViewportTypes=catalog.ViewportTypes;
+                row.Number=Rows.Count+1;row.TitleSuffix="";row.Prefix="КЖ3_Арм_Пилон_";row.Templates=catalog.Templates;row.ViewportTypes=catalog.ViewportTypes;
                 row.TemplateId=onlyTemplate.Count==1?onlyTemplate[0].Id:-1;row.ViewportTypeId=-1;Rows.Add(row);
             }
             ViewsGrid.ItemsSource=Rows;ViewsGrid.SelectedIndex=0;
@@ -38,6 +38,9 @@ namespace ARV.ElementViews
             TitleBlockComboBox.ItemsSource=catalog.TitleBlocks;TitleBlockComboBox.SelectedIndex=catalog.TitleBlocks.Count>0?0:-1;
             if(catalog.TitleBlocks.Count==0) {CreateSheetCheckBox.IsEnabled=false;SheetHelp.Text="Основные надписи не загружены: можно создать виды без листов.";}
             if(onlyTemplate.Count==0) ContextText.Text+=" В проекте нет шаблонов разрезов — создайте их перед запуском.";
+            LayoutRowsCombo.ItemsSource=new[]{1,2,3,4};LayoutColumnsCombo.ItemsSource=new[]{1,2,3,4};
+            LayoutRowsCombo.SelectedItem=2;LayoutColumnsCombo.SelectedItem=3;
+            FillLayout_Click(null,null);
             RefreshPreview();
         }
         private void RefreshPreview()
@@ -48,7 +51,7 @@ namespace ARV.ElementViews
             var selected=catalog.Select(parameter?.Key,unique);
             int empty=unique?catalog.EmptyCount(parameter?.Key):0;
             CountInfo.Text="К обработке: "+selected.Count+" из "+catalog.Elements.Count+". Пустые исключены: "+empty+". Повторы: "+(catalog.Elements.Count-selected.Count-empty)+".";
-            string token=selected.Count==0 || string.IsNullOrWhiteSpace(selected[0].Value)?"1":selected[0].Value.Trim();
+            string token="Пм-1";
             foreach(var row in Rows) row.Token=token;
             try {SheetNamePreview.Text="Пример: "+ElementViewMath.Name(SheetPrefixTextBox.Text,token,SheetSuffixTextBox.Text);}
             catch(ArgumentException) {SheetNamePreview.Text="Укажите название листа.";}
@@ -64,35 +67,36 @@ namespace ARV.ElementViews
         public Options BuildOptions()
         {
             ViewsGrid.CommitEdit(DataGridEditingUnit.Cell,true);ViewsGrid.CommitEdit(DataGridEditingUnit.Row,true);
-            var parameter=ParameterComboBox.SelectedItem as Choice;
+            var parameter=SelectedParameter();
             if(UniqueCheckBox.IsChecked==true && string.IsNullOrEmpty(parameter?.Key)) throw new ArgumentException("Выберите параметр для отбора уникальных экземпляров.");
             if(!(SectionTypeComboBox.SelectedItem is Choice section)) throw new ArgumentException("Выберите тип разреза.");
             if(catalog.Select(parameter?.Key,UniqueCheckBox.IsChecked==true).Count==0) throw new ArgumentException("После исключения пустых значений не осталось элементов.");
             var options=new Options{ParameterKey=parameter?.Key??"",Unique=UniqueCheckBox.IsChecked==true,SectionTypeId=section.Id,
                 SideMm=MarginValue(SideTextBox.Text,"в стороны"),AboveMm=MarginValue(AboveTextBox.Text,"вверх"),BelowMm=MarginValue(BelowTextBox.Text,"вниз"),PlanPaddingMm=MarginValue(PlanPaddingTextBox.Text,"планы"),
-                CreateSheet=CreateSheetCheckBox.IsChecked==true,TitlesAbove=TitlesAboveCheckBox.IsChecked==true,SheetPrefix=SheetPrefixTextBox.Text,SheetSuffix=SheetSuffixTextBox.Text};
+                CreateSheet=CreateSheetCheckBox.IsChecked==true,UseLayout=UseLayoutCheckBox.IsChecked==true,LayoutRows=LayoutRowsCombo.SelectedItem is int lr?lr:2,LayoutColumns=LayoutColumnsCombo.SelectedItem is int lc?lc:3,LayoutCells=UseLayoutCheckBox.IsChecked==true?ReadLayout():null,SheetPrefix=SheetPrefixTextBox.Text,SheetSuffix=SheetSuffixTextBox.Text};
             foreach(var row in Rows.Where(r=>r.Enabled))
             {
                 double offset=0;
                 if(row.IsPlan && (!Algorithms.TryNumber(row.OffsetText,out offset)||offset<0)) throw new ArgumentException("Введите неотрицательную отметку в мм: "+row.Label+".");
                 if(row.TemplateId<=0 || !catalog.Templates.Any(c=>c.Id==row.TemplateId)) throw new ArgumentException("Выберите шаблон вида: "+row.Label+".");
                 ElementViewMath.Name(row.Prefix,row.Token,row.Suffix);
-                options.Views.Add(new ViewRequest{Kind=row.Kind,Label=row.Label,OffsetMm=offset,Prefix=row.Prefix,Suffix=row.Suffix,TemplateId=row.TemplateId,ViewportTypeId=row.ViewportTypeId});
+                options.Views.Add(new ViewRequest{Number=row.Number,TitleSuffix=row.TitleSuffix,Kind=row.Kind,Label=row.Label,OffsetMm=offset,Prefix=row.Prefix,Suffix=row.Suffix,TemplateId=row.TemplateId,ViewportTypeId=row.ViewportTypeId});
             }
             if(options.Views.Count==0) throw new ArgumentException("Выберите хотя бы один вид.");
             if(options.CreateSheet)
             {
                 if(!(TitleBlockComboBox.SelectedItem is Choice block)) throw new ArgumentException("Выберите основную надпись.");
                 options.TitleBlockId=block.Id;ElementViewMath.Name(options.SheetPrefix,Rows[0].Token,options.SheetSuffix);
+                if(options.UseLayout) ElementViewMath.ValidateLayout(options.LayoutCells,options.LayoutRows,options.LayoutColumns,options.Views.Select(v=>v.Number).ToArray());
             }
             return options;
         }
         public UserSettings CaptureSettings()
         {
-            return new UserSettings{Unique=UniqueCheckBox.IsChecked==true,CreateSheet=CreateSheetCheckBox.IsChecked==true,TitlesAbove=TitlesAboveCheckBox.IsChecked==true,
+            return new UserSettings{Unique=UniqueCheckBox.IsChecked==true,CreateSheet=CreateSheetCheckBox.IsChecked==true,UseLayout=UseLayoutCheckBox.IsChecked==true,LayoutRows=LayoutRowsCombo.SelectedItem is int lr?lr:2,LayoutColumns=LayoutColumnsCombo.SelectedItem is int lc?lc:3,LayoutCells=ReadLayout(),
                 Side=SideTextBox.Text,Above=AboveTextBox.Text,Below=BelowTextBox.Text,PlanPadding=PlanPaddingTextBox.Text,SheetPrefix=SheetPrefixTextBox.Text,SheetSuffix=SheetSuffixTextBox.Text,
-                Parameter=SavedChoice.From(ParameterComboBox.SelectedItem as Choice),SectionType=SavedChoice.From(SectionTypeComboBox.SelectedItem as Choice),TitleBlock=SavedChoice.From(TitleBlockComboBox.SelectedItem as Choice),
-                Rows=Rows.Select(row=>new SavedRow{Label=row.Label,Enabled=row.Enabled,Prefix=row.Prefix,Suffix=row.Suffix,Offset=row.OffsetText,
+                Parameter=SavedChoice.From(SelectedParameter()),SectionType=SavedChoice.From(SectionTypeComboBox.SelectedItem as Choice),TitleBlock=SavedChoice.From(TitleBlockComboBox.SelectedItem as Choice),
+                Rows=Rows.Select(row=>new SavedRow{Label=row.Label,TitleSuffix=row.TitleSuffix,Enabled=row.Enabled,Prefix=row.Prefix,Suffix=row.Suffix,Offset=row.OffsetText,
                     Template=SavedChoice.From(catalog.Templates.FirstOrDefault(c=>c.Id==row.TemplateId)),Viewport=SavedChoice.From(catalog.ViewportTypes.FirstOrDefault(c=>c.Id==row.ViewportTypeId))}).ToList()};
         }
         public void ApplySettings(UserSettings saved)
@@ -107,13 +111,59 @@ namespace ARV.ElementViews
                 if(item==null) throw new ArgumentException("В настройках нет строки «"+row.Label+"».");
                 return new {Target=row,Saved=item,Template=item.Template?.ResolveOptional(catalog.Templates,"шаблон",item.Enabled),Viewport=item.Viewport?.ResolveOptional(catalog.ViewportTypes,"тип видового экрана",saved.CreateSheet && item.Enabled)};
             }).ToList();
+            if(saved.UseLayout && saved.CreateSheet)
+                ElementViewMath.ValidateLayout(saved.LayoutCells,saved.LayoutRows,saved.LayoutColumns,resolved.Where(row=>row.Saved.Enabled).Select(row=>row.Target.Number).ToArray());
             ParameterComboBox.SelectedItem=parameter;SectionTypeComboBox.SelectedItem=section;TitleBlockComboBox.SelectedItem=block;
-            UniqueCheckBox.IsChecked=saved.Unique;CreateSheetCheckBox.IsChecked=saved.CreateSheet;TitlesAboveCheckBox.IsChecked=saved.TitlesAbove;
+            UniqueCheckBox.IsChecked=saved.Unique;CreateSheetCheckBox.IsChecked=saved.CreateSheet;UseLayoutCheckBox.IsChecked=saved.UseLayout;
+            LayoutRowsCombo.SelectedItem=saved.LayoutRows>=1&&saved.LayoutRows<=4?saved.LayoutRows:2;LayoutColumnsCombo.SelectedItem=saved.LayoutColumns>=1&&saved.LayoutColumns<=4?saved.LayoutColumns:3;
+            SetLayout(saved.LayoutCells);
             SideTextBox.Text=saved.Side;AboveTextBox.Text=saved.Above;BelowTextBox.Text=saved.Below;PlanPaddingTextBox.Text=saved.PlanPadding;
             SheetPrefixTextBox.Text=saved.SheetPrefix;SheetSuffixTextBox.Text=saved.SheetSuffix;
             foreach(var row in resolved)
-            {row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??-1;}
+            {row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??-1;}
             RefreshPreview();ValidationMessage.Visibility=Visibility.Collapsed;
+        }
+        private readonly List<TextBox> layoutBoxes=new List<TextBox>();
+        private Choice SelectedParameter()
+        {
+            var selected=ParameterComboBox.SelectedItem as Choice;
+            string typed=(ParameterComboBox.Text??"").Trim();
+            if(selected!=null && selected.Name==typed)return selected;
+            var matches=catalog.Parameters.Where(p=>p.Name.IndexOf(typed,StringComparison.CurrentCultureIgnoreCase)>=0 && !string.IsNullOrEmpty(p.Key)).ToList();
+            if(typed.Length>0 && matches.Count==1)return matches[0];
+            if(UniqueCheckBox.IsChecked==true)throw new ArgumentException("Выберите однозначный параметр из списка по введённому названию.");
+            return selected;
+        }
+        private int[] ReadLayout()
+        {
+            return layoutBoxes.Select(box=>{
+                if(string.IsNullOrWhiteSpace(box.Text))return 0;
+                if(!int.TryParse(box.Text,out int n)||n<1||n>Rows.Count)throw new ArgumentException("В ячейке схемы укажите № вида от 1 до 7 либо оставьте её пустой.");
+                return n;
+            }).ToArray();
+        }
+        private void SetLayout(int[] cells)
+        {
+            for(int i=0;i<layoutBoxes.Count;i++)layoutBoxes[i].Text=cells!=null&&i<cells.Length&&cells[i]>0?cells[i].ToString():"";
+        }
+        private void LayoutSizeChanged(object sender,SelectionChangedEventArgs e)
+        {
+            if(LayoutGrid==null||layoutBoxes==null||!(LayoutRowsCombo.SelectedItem is int rows)||!(LayoutColumnsCombo.SelectedItem is int columns))return;
+            var old=layoutBoxes.Select(b=>b.Text).ToList();
+            LayoutGrid.Children.Clear();LayoutGrid.RowDefinitions.Clear();LayoutGrid.ColumnDefinitions.Clear();layoutBoxes.Clear();
+            for(int i=0;i<rows;i++)LayoutGrid.RowDefinitions.Add(new RowDefinition());
+            for(int i=0;i<columns;i++)LayoutGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            for(int i=0;i<rows*columns;i++)
+            {
+                var box=new TextBox{Text=i<old.Count?old[i]:"",FontSize=20,TextAlignment=TextAlignment.Center,VerticalContentAlignment=VerticalAlignment.Center,Margin=new Thickness(3),ToolTip="№ вида из таблицы; пусто — свободная ячейка"};
+                Grid.SetRow(box,i/columns);Grid.SetColumn(box,i%columns);LayoutGrid.Children.Add(box);layoutBoxes.Add(box);
+            }
+        }
+        private void FillLayout_Click(object sender,RoutedEventArgs e)
+        {
+            var enabled=Rows.Where(row=>row.Enabled).Select(row=>row.Number).ToArray();
+            if(enabled.Length>layoutBoxes.Count) {UiSupport.Error(this,LayoutRowsCombo,"Добавьте ячейки: включённых видов больше, чем мест в схеме.");return;}
+            SetLayout(enabled);
         }
         private void Save_Click(object sender,RoutedEventArgs e)
         {

@@ -67,7 +67,7 @@ foreach($row in $elementDialog.Rows){$row.TemplateId=2}
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=1;$elementDialog.FindName('UniqueCheckBox').IsChecked=$true
 $elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
 if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 17 из 50' -or $elementDialog.Rows.Count -ne 7) {throw 'Element-view selection preview regression'}
-if ($elementDialog.Rows[0].Preview -cne 'КЖ3_Арм_Пилон_К-1_План1') {throw 'Element-view parameter naming regression'}
+if ($elementDialog.Rows[0].Preview -cne 'КЖ3_Арм_Пилон_Пм-1_План1') {throw 'Element-view parameter naming regression'}
 $events = @('Click','SelectionChanged','TextChanged','PreviewTextInput','KeyDown')
 $count = 0
 foreach ($case in $cases) {
@@ -134,11 +134,11 @@ foreach ($case in $cases) {
         $window.FindName('UniqueCheckBox').IsChecked=$true
         $window.FindName('CountInfo').Text=$elementDialog.FindName('CountInfo').Text
         $window.FindName('ContextText').Text='Выбрано элементов модели: 50. Неподходящих объектов: 0.'
-        $window.FindName('SheetNamePreview').Text='Пример: Элемент К-1'
+        $window.FindName('SheetNamePreview').Text='Пример: Элемент Пм-1'
     }
     if ($case.project -eq 'ElementViews' -and $case.file -eq 'ReportWindow.xaml') {
         $table=[Data.DataTable]::new();[void]$table.Columns.Add('Element');[void]$table.Columns.Add('Reason')
-        [void]$table.Rows.Add('10501 — Колонна К-1','Виды не помещаются на листе. Выберите больший формат или увеличьте знаменатель масштаба.')
+        [void]$table.Rows.Add('10501 — Колонна К-1','Виды сохранены за границей листа для ручной компоновки.')
         $window.FindName('SkippedGrid').ItemsSource=$table.DefaultView
         $window.FindName('SummaryText').Text='Обработано: 16. Виды: 48. Листы: 16. Пропущено: 1. Повторы исключены отбором: 33.'
     }
@@ -160,7 +160,7 @@ foreach ($case in $cases) {
     $window.Close()
 }
 
-foreach($dpi in @(96,120,144,192)) {Render-Content $elementDialog 1000 720 $dpi (Join-Path $out ('ElementViews-compiled-'+$dpi+'.png'))}
+foreach($dpi in @(96,120,144,192)) {Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-compiled-'+$dpi+'.png'))}
 # The public form reader must preserve the actual per-row IDs.
 function Find-VisualCombos($node) {
  if($node -is [Windows.Controls.ComboBox]) {Write-Output $node}
@@ -178,6 +178,25 @@ $elementDialog.Rows[0].TemplateId=-1;$rejected=$false
 try {$null=$elementDialog.BuildOptions()} catch {$rejected=$true}
 if(-not $rejected){throw 'Enabled view without template must be rejected'}
 $elementDialog.Rows[0].TemplateId=4
+function Find-VisualTextBoxes($node) {
+ if($node -is [Windows.Controls.TextBox]) {Write-Output $node}
+ for($child=0;$child -lt [Windows.Media.VisualTreeHelper]::GetChildrenCount($node);$child++) {Find-VisualTextBoxes ([Windows.Media.VisualTreeHelper]::GetChild($node,$child))}
+}
+$textCells=@(Find-VisualTextBoxes ($elementDialog.FindName('ViewsGrid')))
+$titleCell=@($textCells | Where-Object {$_.DataContext -eq $elementDialog.Rows[0] -and $_.GetBindingExpression([Windows.Controls.TextBox]::TextProperty).ParentBinding.Path.Path -eq 'TitleSuffix'})[0]
+if(-not $titleCell){throw 'Actual sheet-title cell not generated'}
+$titleCell.Text='Разрез'
+if($elementDialog.Rows[0].TitleSuffix -cne 'Разрез'){throw 'Editing title cell did not update settings'}
+$elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$elementDialog.FindName('UseLayoutCheckBox').IsChecked=$true
+$layoutGrid=$elementDialog.FindName('LayoutGrid')
+$layoutGrid.Children[0].Text='7';$layoutGrid.Children[1].Text='4';$layoutGrid.Children[2].Text='1'
+$built=$elementDialog.BuildOptions()
+if($built.LayoutCells[0] -ne 7 -or $built.Views[0].TitleSuffix -cne 'Разрез' -or $built.Views[0].Number -ne 1) {throw 'Grid layout or sheet title lost in options'}
+$layoutGrid.Children[1].Text='7';$duplicateRejected=$false
+try{$null=$elementDialog.BuildOptions()}catch{$duplicateRejected=$true}
+if(-not $duplicateRejected){throw 'Duplicate grid view accepted'}
+$layoutGrid.Children[1].Text='4'
 $saved=$elementDialog.CaptureSettings()
 $settingsType=$elementAssembly.GetType('ARV.ElementViews.SettingsFile')
 $settingsPath=Join-Path $out 'element-views-settings.json'
@@ -187,6 +206,21 @@ $loaded=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$settin
 $elementDialog.Rows[0].Prefix='changed';$elementDialog.Rows[0].TemplateId=2;$elementDialog.Rows[0].ViewportTypeId=-1
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].Prefix -cne 'КЖ3_Арм_Пилон_' -or $elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.Rows[0].ViewportTypeId -ne 22){throw 'Settings round-trip lost names or selections'}
+if($loaded.LayoutCells[0] -ne 7 -or $loaded.Rows[0].TitleSuffix -cne 'Разрез' -or -not $loaded.UseLayout){throw 'Grid/title settings round-trip lost'}
+$legacy=$elementDialog.CaptureSettings();$legacy.Version=1;$legacy.UseLayout=$false;$legacy.LayoutCells=$null
+$elementDialog.ApplySettings($legacy)
+if($elementDialog.Rows[0].TemplateId -ne 4){throw 'Legacy 1.5.1 settings must remain loadable'}
+$elementDialog.ApplySettings($loaded)
+$elementDialog.FindName('ParameterComboBox').SelectedIndex=-1;$elementDialog.FindName('ParameterComboBox').Text='Марка'
+$typed=$elementDialog.BuildOptions()
+if($typed.ParameterKey -cne 'I:mark'){throw 'Manually typed parameter name not resolved'}
+$elementDialog.FindName('ParameterComboBox').SelectedIndex=1
+$elementDialog.FindName('UniqueCheckBox').IsChecked=$false
+if($elementDialog.FindName('ParameterComboBox').IsEnabled){throw 'Unchecked parameter row must be disabled'}
+$elementDialog.FindName('UniqueCheckBox').IsChecked=$true
+$invalidLayout=$elementDialog.CaptureSettings();$invalidLayout.LayoutCells[1]=7;$invalidLayout.Rows[0].Prefix='must not apply';$oldPrefix=$elementDialog.Rows[0].Prefix;$invalidRejected=$false
+try{$elementDialog.ApplySettings($invalidLayout)}catch{$invalidRejected=$true}
+if(-not $invalidRejected -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Invalid saved grid partially overwrote settings'}
 $loaded.Rows[0].Template.Id=99999
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].TemplateId -ne 4) {throw 'Saved reference must resolve by name in another project'}
@@ -199,7 +233,7 @@ if(-not $failed -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Missin
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $elementDialog.FindName('BodyScroll').ScrollToBottom()
 $elementDialog.FindName('SettingsTabs').SelectedIndex=1
-Render-Content $elementDialog 1000 720 96 (Join-Path $out 'ElementViews-sheets-96.png')
+foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-sheets-'+$dpi+'.png'))}
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=0
 $elementDialog.GetType().GetMethod('Ok_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@($null,[Windows.RoutedEventArgs]::new()))
 if ($elementDialog.FindName('ValidationMessage').Text -notmatch 'параметр') {throw 'Unique filter without parameter must fail inline'}

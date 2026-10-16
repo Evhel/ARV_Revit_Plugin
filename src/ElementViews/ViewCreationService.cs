@@ -64,6 +64,10 @@ namespace ARV.ElementViews
                                 doc.Regenerate();
                                 if(view.ViewTemplateId!=id || view.Scale!=template.Scale) throw new InvalidOperationException("Revit не сохранил шаблон и его масштаб: "+request.Label);
                                 if(!view.CropBoxActive) throw new InvalidOperationException("Шаблон отключает границы вида «"+request.Label+"». Измените шаблон.");
+                                string title=ElementViewMath.SheetTitle(request.TitleSuffix,token);
+                                var titleParameter=view.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION);
+                                if(titleParameter==null || titleParameter.IsReadOnly || !titleParameter.Set(title) || titleParameter.AsString()!=title)
+                                    throw new InvalidOperationException("Не удалось заполнить «Заголовок на листе»: "+request.Label);
                                 created.Add(view);
                             }
                             if(options.CreateSheet)
@@ -133,19 +137,12 @@ namespace ARV.ElementViews
         private sealed class PlacedView
         {
             internal Viewport Port;
-            internal TextNote Title;
         }
         private static PaperRect Extents(PlacedView placed,ViewSheet sheet)
         {
             var box=placed.Port.GetBoxOutline();double x=box.MinimumPoint.X,y=box.MinimumPoint.Y,right=box.MaximumPoint.X,top=box.MaximumPoint.Y;
             var label=placed.Port.GetLabelOutline();
             if(!label.IsEmpty) {x=Math.Min(x,label.MinimumPoint.X);y=Math.Min(y,label.MinimumPoint.Y);right=Math.Max(right,label.MaximumPoint.X);top=Math.Max(top,label.MaximumPoint.Y);}
-            if(placed.Title!=null)
-            {
-                var title=placed.Title.get_BoundingBox(sheet);
-                if(title==null) throw new InvalidOperationException("Не удалось измерить название над видом.");
-                x=Math.Min(x,title.Min.X);y=Math.Min(y,title.Min.Y);right=Math.Max(right,title.Max.X);top=Math.Max(top,title.Max.Y);
-            }
             return new PaperRect(x,y,right-x,top-y);
         }
         private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options)
@@ -167,30 +164,20 @@ namespace ARV.ElementViews
                 ports.Add(new PlacedView{Port=port});
             }
             doc.Regenerate();
-            if(options.TitlesAbove)
-            foreach(var placed in ports)
-            {
-                var frame=placed.Port.GetBoxOutline();
-                var position=new XYZ((frame.MinimumPoint.X+frame.MaximumPoint.X)/2,frame.MaximumPoint.Y+5/304.8,0);
-                var type=doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
-                if(type==ElementId.InvalidElementId) throw new InvalidOperationException("Нет типа текста для названия над видом.");
-                var textOptions=new TextNoteOptions(type){HorizontalAlignment=HorizontalTextAlignment.Center,VerticalAlignment=VerticalTextAlignment.Bottom};
-                placed.Title=TextNote.Create(doc,sheet.Id,position,doc.GetElement(placed.Port.ViewId).Name,textOptions);
-            }
-            doc.Regenerate();
             var bounds=ports.Select(port=>Extents(port,sheet)).ToList();
             var sheetBox=sheet.Outline;
             double margin=20/304.8,bottom=55/304.8,gap=10/304.8;
             double left=sheetBox.Min.U+margin,top=sheetBox.Max.V-margin;
             double width=sheetBox.Max.U-margin-left,height=top-(sheetBox.Min.V+bottom);
-            var positions=ElementViewMath.PackPreserving(bounds,width,height,gap,sheetBox.Max.U-left+gap);
+            var positions=options.UseLayout
+                ?ElementViewMath.PackGrid(bounds,options.Views.Select(v=>v.Number).ToArray(),options.LayoutCells,options.LayoutRows,options.LayoutColumns,width,height,gap,sheetBox.Max.U-left+gap)
+                :ElementViewMath.PackPreserving(bounds,width,height,gap,sheetBox.Max.U-left+gap);
             int overflow=positions.Count(position=>position.X>=width);
             for(int i=0;i<ports.Count;i++)
             {
                 var b=bounds[i];var target=positions[i];
                 var shift=new XYZ(left+target.X-b.X,top-target.Y-(b.Y+b.Height),0);
                 ports[i].Port.SetBoxCenter(ports[i].Port.GetBoxCenter()+shift);
-                if(ports[i].Title!=null) ElementTransformUtils.MoveElement(doc,ports[i].Title.Id,shift);
             }
             doc.Regenerate();
             return overflow;

@@ -75,6 +75,34 @@ namespace ARV.ElementViews
                 Min=new Point3(local.Min(p=>p.X)-padding,local.Min(p=>p.Y)-(plan?planPadding:below),0),
                 Max=new Point3(local.Max(p=>p.X)+padding,local.Max(p=>p.Y)+(plan?planPadding:above),Math.Max(depth,local.Max(p=>p.Z)+depth)) };
         }
+        public static string SheetTitle(string suffix,string token)
+        {
+            return ((suffix??"").Trim()+" "+(token??"").Trim()).Trim();
+        }
+        public static void ValidateLayout(int[] cells,int rows,int columns,int[] numbers)
+        {
+            if(rows<1||rows>4||columns<1||columns>4||cells==null||cells.Length!=rows*columns)throw new ArgumentException("Недопустимый размер схемы листа.");
+            var used=cells.Where(n=>n!=0).ToArray();
+            if(used.Any(n=>!numbers.Contains(n)))throw new ArgumentException("В схеме указан выключенный или неизвестный № вида.");
+            if(used.Distinct().Count()!=used.Length)throw new ArgumentException("Каждый вид должен встречаться в схеме только один раз.");
+            if(numbers.Any(n=>!used.Contains(n)))throw new ArgumentException("Укажите в схеме каждый включённый вид или нажмите «Заполнить по порядку».");
+        }
+        public static List<PaperRect> PackGrid(IList<PaperRect> sizes,int[] numbers,int[] cells,int rows,int columns,double width,double height,double gap,double overflowX)
+        {
+            ValidateLayout(cells,rows,columns,numbers);
+            if(sizes.Count!=numbers.Length||width<=0||height<=0||gap<0||overflowX<=width)throw new ArgumentException("Недопустимая область компоновки.");
+            double cellWidth=(width-(columns-1)*gap)/columns,cellHeight=(height-(rows-1)*gap)/rows,outsideY=0;
+            var result=new List<PaperRect>();
+            for(int i=0;i<sizes.Count;i++)
+            {
+                var size=sizes[i];int cell=Array.IndexOf(cells,numbers[i]);
+                if(size.Width<=0||size.Height<=0||double.IsNaN(size.Width)||double.IsNaN(size.Height)||double.IsInfinity(size.Width)||double.IsInfinity(size.Height))throw new ArgumentException("Недопустимый размер вида.");
+                if(size.Width>cellWidth+1e-8||size.Height>cellHeight+1e-8)
+                {result.Add(new PaperRect(overflowX,outsideY,size.Width,size.Height));outsideY+=size.Height+gap;}
+                else result.Add(new PaperRect((cell%columns)*(cellWidth+gap)+(cellWidth-size.Width)/2,(cell/columns)*(cellHeight+gap)+(cellHeight-size.Height)/2,size.Width,size.Height));
+            }
+            return result;
+        }
         public static List<PaperRect> PackPreserving(IList<PaperRect> sizes,double width,double height,double gap,double overflowX)
         {
             if(width<=0||height<=0||gap<0||overflowX<=width) throw new ArgumentException("Некорректная рабочая область листа.");

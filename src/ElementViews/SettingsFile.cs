@@ -31,15 +31,17 @@ namespace ARV.ElementViews
     [DataContract]
     public sealed class SavedRow
     {
-        [DataMember] public string Label,Prefix,Suffix,Offset;
+        [DataMember] public string Label,Prefix,Suffix,Offset,TitleSuffix;
         [DataMember] public bool Enabled;
         [DataMember] public SavedChoice Template,Viewport;
     }
     [DataContract]
     public sealed class UserSettings
     {
-        [DataMember] public int Version=1;
-        [DataMember] public bool Unique,CreateSheet,TitlesAbove=true;
+        [DataMember] public int Version=2;
+        [DataMember] public bool Unique,CreateSheet,UseLayout;
+        [DataMember] public int LayoutRows=2,LayoutColumns=3;
+        [DataMember] public int[] LayoutCells;
         [DataMember] public string Side="100",Above="100",Below="100",PlanPadding="100",SheetPrefix,SheetSuffix;
         [DataMember] public SavedChoice Parameter,SectionType,TitleBlock;
         [DataMember] public List<SavedRow> Rows=new List<SavedRow>();
@@ -58,7 +60,7 @@ namespace ARV.ElementViews
             if(info.Length>1024*1024) throw new InvalidDataException("Файл настроек слишком большой.");
             UserSettings settings;
             using(var stream=info.OpenRead()) settings=(UserSettings)new DataContractJsonSerializer(typeof(UserSettings)).ReadObject(stream);
-            if(settings==null || settings.Version!=1 || settings.Rows==null || settings.Rows.Count!=7 || settings.Rows.Any(row=>row==null) || settings.Rows.Select(row=>row.Label).Distinct().Count()!=7)
+            if(settings==null || (settings.Version!=1 && settings.Version!=2) || settings.Rows==null || settings.Rows.Count!=7 || settings.Rows.Any(row=>row==null) || settings.Rows.Select(row=>row.Label).Distinct().Count()!=7)
                 throw new InvalidDataException("Неподдерживаемый или неполный файл настроек.");
             return settings;
         }
