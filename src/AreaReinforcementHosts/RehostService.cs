@@ -44,7 +44,7 @@ namespace ARV.AreaReinforcementHosts
                             if (source.GetHostId() == host.Id)
                             {
                                 item.RollBack();
-                                result.Status = "Без изменений";
+                                result.Status = "Пропущено";
                                 result.Detail = "Уже имеет найденную основу.";
                                 results.Add(result);
                                 continue;

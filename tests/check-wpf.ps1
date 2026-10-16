@@ -90,11 +90,11 @@ foreach ($case in $cases) {
     }
     if ($case.project -eq 'AreaReinforcementHosts') {
         $table=[Data.DataTable]::new();foreach($column in @('OldId','NewId','HostId','Status','Detail')) {[void]$table.Columns.Add($column)}
-        [void]$table.Rows.Add('10501','20901','20001','Изменено','Контур и настройки сохранены; верх контура выше стены.')
+        [void]$table.Rows.Add('10501','—','20001','Пропущено','Уже имеет найденную основу.')
         [void]$table.Rows.Add('10502','—','—','Пропущено','Под нижней границей найдены несколько стен; исходное армирование сохранено.')
         $window.FindName('ResultsGrid').ItemsSource=$table.DefaultView
         $window.FindName('ResultsGrid').Height=102
-        $window.FindName('SummaryText').Text='Изменено: 1. Пропущено: 1.'
+        $window.FindName('SummaryText').Text='Изменено: 8. Пропущено: 2.'
     }
     $ok=$window.FindName('OkButton');$cancel=$window.FindName('CancelButton'); if ($case.report) {$cancel=$ok}
     if (-not $cancel.IsCancel -or ($case.defaultAction -ne $false -and -not $ok.IsDefault) -or ($case.defaultAction -eq $false -and ($ok.IsDefault -or -not $cancel.IsDefault))) {throw 'Keyboard defaults missing'}
@@ -167,5 +167,19 @@ $report.Close()
 $list.Add($result)
 $report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
 if ($report.FindName('ResultsGrid').Visibility -ne 'Visible' -or $report.Height -ge 450) {throw 'Two-row report must remain compact'}
+$report.Close()
+$success=[Activator]::CreateInstance($resultType);$success.Status='Изменено';$success.OldId='10';$success.NewId='11';$success.HostId='3';$success.Detail='Успешно'
+$list.Add($success)
+$report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
+if ($report.FindName('ResultsGrid').Items.Count -ne 2 -or $report.FindName('SummaryText').Text -cne 'Изменено: 1. Пропущено: 2.') {throw 'Mixed report must list only skips and count all results'}
+$report.Close()
+$list.RemoveAt(0)
+$report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
+if ($report.FindName('SingleResult').Visibility -ne 'Visible' -or $report.FindName('SummaryText').Visibility -ne 'Visible' -or $report.FindName('SummaryText').Text -cne 'Изменено: 1. Пропущено: 1.' -or $report.FindName('ResultsGrid').Items.Count -ne 1) {throw 'Mixed report with one skip must retain totals'}
+$report.Close()
+$list.RemoveAt(0)
+$report=$reportAssembly.GetType('ARV.AreaReinforcementHosts.ReportWindow').GetConstructors()[0].Invoke($reportArgs)
+if ($report.FindName('ResultsGrid').Items.Count -ne 0 -or $report.FindName('ResultsGrid').Visibility -ne 'Collapsed' -or $report.FindName('SingleResult').Visibility -ne 'Collapsed' -or $report.FindName('SummaryText').Text -cne 'Изменено: 1. Пропущено: 0.') {throw 'All-success report must show totals without rows'}
+Render-Content $report $report.Width ($report.Height-40) 96 (Join-Path $out 'AreaReinforcementHosts-success.png')
 $report.Close()
 "PASS: $($cases.Count) production layouts and event handlers; $count DPI renders; $($cases.Count) compact/error layouts; compiled numbering/copy/placement/relocation UI checks. Revit not launched."
