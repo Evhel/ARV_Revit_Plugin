@@ -10,7 +10,7 @@ namespace ARV.ElementViews
     {
         internal static void Apply(Element sheet,IList<Element> blocks,string a,string x)
         {
-            Set(sheet,blocks,"A",a);Set(sheet,blocks,"x",x);
+            Set(sheet,blocks,"А",a);Set(sheet,blocks,"x",x);
         }
         private static void Set(Element sheet,IList<Element> blocks,string name,string value)
         {

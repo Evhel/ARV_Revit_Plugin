@@ -3,7 +3,7 @@ param(
     [string]$MSBuildPath
 )
 $ErrorActionPreference = 'Stop'
-$version = '1.5.4'
+$version = '1.5.5'
 if (-not $MSBuildPath) {
     $locator = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $locator)) { throw 'Install Visual Studio 2022 with .NET desktop development.' }
