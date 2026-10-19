@@ -14,7 +14,6 @@ namespace ARV.ElementViews
         private readonly Catalog catalog;
         public List<ViewRow> Rows {get;}=new List<ViewRow>();
         public Options Settings {get;private set;}
-        public Func<int,string> TitleBlockDiagnosticsReader {get;set;}
         public MainWindow(Catalog source)
         {
             catalog=source??throw new ArgumentNullException(nameof(source));
@@ -175,24 +174,6 @@ namespace ARV.ElementViews
             var enabled=Rows.Where(row=>row.Enabled).Select(row=>row.Number).ToArray();
             if(enabled.Length>layoutBoxes.Count) {UiSupport.Error(this,LayoutRowsCombo,"Добавьте ячейки: включённых видов больше, чем мест в схеме.");return;}
             SetLayout(enabled);
-        }
-        public string ReadSelectedTitleBlockDiagnostics()
-        {
-            if(!(TitleBlockComboBox.SelectedItem is Choice type))throw new InvalidOperationException("Выберите тип основной надписи.");
-            if(TitleBlockDiagnosticsReader==null)throw new InvalidOperationException("Чтение семейства доступно при запуске команды из Revit.");
-            return TitleBlockDiagnosticsReader(type.Id);
-        }
-        private void DiagnoseTitleBlock_Click(object sender,RoutedEventArgs e)
-        {
-            var dialog=new SaveFileDialog{Filter="Отчёт параметров (*.txt)|*.txt",DefaultExt=".txt",FileName="ARV_Параметры_основной_надписи.txt",AddExtension=true,OverwritePrompt=true};
-            if(dialog.ShowDialog(this)!=true)return;
-            try
-            {
-                string report=ReadSelectedTitleBlockDiagnostics();
-                File.WriteAllText(dialog.FileName,report,new System.Text.UTF8Encoding(true));
-                FileStatusText.Text="Параметры сохранены: "+Path.GetFileName(dialog.FileName);ValidationMessage.Visibility=Visibility.Collapsed;
-            }
-            catch(Exception ex){UiSupport.Error(this,TitleBlockComboBox,"Не удалось прочитать параметры: "+ex.Message);}
         }
         private void Save_Click(object sender,RoutedEventArgs e)
         {

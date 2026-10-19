@@ -78,7 +78,6 @@
         <Compile Include="Models.cs"/>
         <Compile Include="SettingsFile.cs"/>
         <Compile Include="SheetFormatParameters.cs"/>
-        <Compile Include="TitleBlockDiagnostics.cs"/>
         <Compile Include="ElementViewMath.cs"/>
         <Compile Include="CatalogBuilder.cs"/>
         <Compile Include="ViewCreationService.cs"/>

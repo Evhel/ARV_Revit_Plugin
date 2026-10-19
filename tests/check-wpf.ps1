@@ -187,8 +187,6 @@ $titleCell=@($textCells | Where-Object {$_.DataContext -eq $elementDialog.Rows[0
 if(-not $titleCell){throw 'Actual sheet-title cell not generated'}
 $titleCell.Text='Разрез'
 if($elementDialog.Rows[0].TitleSuffix -cne 'Разрез'){throw 'Editing title cell did not update settings'}
-$elementDialog.TitleBlockDiagnosticsReader=[Func[int,string]]{param($id) "Real selection callback: $id"}
-if($elementDialog.ReadSelectedTitleBlockDiagnostics() -cne 'Real selection callback: 3'){throw 'Diagnostics must read selected titleblock type'}
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $elementDialog.FindName('UseLayoutCheckBox').IsChecked=$true
 $layoutGrid=$elementDialog.FindName('LayoutGrid')

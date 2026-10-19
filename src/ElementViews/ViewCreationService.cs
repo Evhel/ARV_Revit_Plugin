@@ -12,7 +12,6 @@ namespace ARV.ElementViews
         internal static CreationResult Run(Document doc,Catalog catalog,Options options)
         {
             var candidates=catalog.Select(options.ParameterKey,options.Unique);
-            var formatTypes=new Dictionary<string,FamilySymbol>(StringComparer.Ordinal);
             var result=new CreationResult{Selected=catalog.Elements.Count,Filtered=catalog.Elements.Count-candidates.Count,EmptyExcluded=options.Unique?catalog.EmptyCount(options.ParameterKey):0};
             var data=catalog.Elements.ToDictionary(e=>e.Id);
             var viewNames=new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Select(v=>v.Name),StringComparer.OrdinalIgnoreCase);
@@ -85,20 +84,7 @@ namespace ARV.ElementViews
                                         sheet=ViewSheet.Create(doc,symbol.Id);doc.Regenerate();
                                         var blocks=new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_TitleBlocks)
                                             .WhereElementIsNotElementType().Where(e=>e.OwnerViewId==sheet.Id).ToList();
-                                        SheetFormatParameters.Apply(blocks,symbol,()=>
-                                        {
-                                            string a=(options.FormatA??"").Trim(),x=(options.FormatX??"").Trim();
-                                            string key=symbol.Id.IntegerValue+":"+a.Length+":"+a+x;
-                                            if(!formatTypes.TryGetValue(key,out FamilySymbol copy) || !copy.IsValidObject)
-                                            {
-                                                var existing=new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(t=>t.Family.Id==symbol.Family.Id).Select(t=>t.Name);
-                                                string name=Algorithms.UniqueName(ElementViewMath.Name("ARV_Формат_А",a,"_х"+x),new HashSet<string>(existing,StringComparer.OrdinalIgnoreCase));
-                                                copy=(FamilySymbol)symbol.Duplicate(name);formatTypes[key]=copy;
-                                            }
-                                            if(!copy.IsActive){copy.Activate();doc.Regenerate();}
-                                            foreach(FamilyInstance block in blocks)block.Symbol=copy;
-                                            doc.Regenerate();return copy;
-                                        },options.FormatA,options.FormatX);
+                                        SheetFormatParameters.Apply(blocks,options.FormatA,options.FormatX);
                                         doc.Regenerate();
                                         sheet.Name=ElementViewMath.Name(options.SheetPrefix,token,options.SheetSuffix);
                                         int number=1;

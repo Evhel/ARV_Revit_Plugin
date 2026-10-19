@@ -29,7 +29,7 @@ namespace ARV.ElementViews
                 var catalog=CatalogBuilder.Build(doc,selected);
                 if(catalog.Elements.Count==0) {TaskDialog.Show("ARV — Виды элемента","Нет подходящих элементов модели.");return Result.Cancelled;}
                 if(catalog.SectionTypes.Count==0) {TaskDialog.Show("ARV — Виды элемента","В проекте нет типа вида семейства «Разрез».");return Result.Cancelled;}
-                var dialog=new MainWindow(catalog){TitleBlockDiagnosticsReader=id=>TitleBlockDiagnostics.Read(doc,id)};new WindowInteropHelper(dialog){Owner=data.Application.MainWindowHandle};
+                var dialog=new MainWindow(catalog);new WindowInteropHelper(dialog){Owner=data.Application.MainWindowHandle};
                 if(dialog.ShowDialog()!=true) return Result.Cancelled;
                 var result=ViewCreationService.Run(doc,catalog,dialog.Settings);
                 var report=new ReportWindow(result);new WindowInteropHelper(report){Owner=data.Application.MainWindowHandle};report.ShowDialog();
