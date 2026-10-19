@@ -33,6 +33,33 @@ namespace ARV.ElementViews
     }
     public static class ElementViewMath
     {
+        public static void ValidateDetailNumbers(IEnumerable<string> requested)
+        {
+            var values=requested.Select(n=>(n??"").Trim()).Where(n=>n.Length>0).ToArray();
+            if(values.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=values.Length)
+                throw new ArgumentException("Номера видов на одном листе должны быть разными. Пустые поля заполняются автоматически.");
+        }
+        public static List<string> DetailNumbers(IList<string> current,IList<string> requested,IEnumerable<string> occupied)
+        {
+            if(current.Count!=requested.Count)throw new ArgumentException("Не совпадает количество видов и номеров.");
+            ValidateDetailNumbers(requested);
+            var result=requested.Select(n=>(n??"").Trim()).ToList();
+            var used=new HashSet<string>(occupied.Where(n=>!string.IsNullOrWhiteSpace(n)),StringComparer.OrdinalIgnoreCase);
+            foreach(var value in result.Where(n=>n.Length>0))
+                if(!used.Add(value))throw new ArgumentException("Номер вида уже занят на листе: "+value);
+            // Preserve automatic numbers wherever they do not conflict with an explicit choice.
+            for(int i=0;i<result.Count;i++)
+                if(result[i].Length==0&&!string.IsNullOrWhiteSpace(current[i])&&used.Add(current[i]))result[i]=current[i];
+            int next=1;
+            for(int i=0;i<result.Count;i++)if(result[i].Length==0)
+            {
+                string value;
+                do{value=(next++).ToString(System.Globalization.CultureInfo.InvariantCulture);}while(!used.Add(value));
+                result[i]=value;
+            }
+            return result;
+        }
+
         public static List<ElementCandidate> Select(IEnumerable<ElementCandidate> source, bool unique)
         {
             var ordered=source.OrderBy(e=>e.Z).ThenBy(e=>e.X).ThenByDescending(e=>e.Y).ThenBy(e=>e.Id).ToList();

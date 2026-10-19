@@ -42,7 +42,7 @@ namespace ARV.ElementViews
     }
     public sealed class ViewRow : INotifyPropertyChanged
     {
-        private string prefix,suffix,token,offset,titleSuffix,side="100",above="100",below="100";
+        private string prefix,suffix,token,offset,titleSuffix,detailNumber,side="100",above="100",below="100";
         private int templateId=-1,viewportTypeId=-1;
         private bool enabled;
         public int Number {get;set;}
@@ -52,6 +52,7 @@ namespace ARV.ElementViews
         public bool IsPlan => Kind=="Plan";
         public string Prefix {get=>prefix;set{prefix=value;Changed();}}
         public string Suffix {get=>suffix;set{suffix=value;Changed();}}
+        public string DetailNumber {get=>detailNumber;set{if(detailNumber==value)return;detailNumber=value;Changed();}}
         public string TitleSuffix {get=>titleSuffix;set{titleSuffix=value;Changed();}}
         public string Token {get=>token;set{token=value;Changed();}}
         public string SideText {get=>side;set{side=value;Changed();}}
@@ -68,7 +69,7 @@ namespace ARV.ElementViews
     }
     public sealed class ViewRequest
     {
-        public string Kind,Label,Prefix,Suffix,TitleSuffix;
+        public string Kind,Label,Prefix,Suffix,TitleSuffix,DetailNumber;
         public int Number;
         public double OffsetMm,SideMm,AboveMm,BelowMm;
         public int TemplateId,ViewportTypeId;

@@ -82,13 +82,14 @@ namespace ARV.ElementViews
                 if(row.TemplateId<=0 || !catalog.Templates.Any(c=>c.Id==row.TemplateId)) throw new ArgumentException("Выберите шаблон вида: "+row.Label+".");
                 if(options.CreateSheet&&!catalog.ViewportTypes.Any(c=>c.Id==row.ViewportTypeId))throw new ArgumentException("Выберите тип видового экрана: "+row.Label+".");
                 ElementViewMath.Name(row.Prefix,row.Token,row.Suffix);
-                options.Views.Add(new ViewRequest{Number=row.Number,TitleSuffix=row.TitleSuffix,Kind=row.Kind,Label=row.Label,OffsetMm=offset,SideMm=MarginValue(row.SideText,row.Label+" — в стороны"),AboveMm=MarginValue(row.AboveText,row.Label+" — вверх"),BelowMm=MarginValue(row.BelowText,row.Label+" — вниз"),Prefix=row.Prefix,Suffix=row.Suffix,TemplateId=row.TemplateId,ViewportTypeId=row.ViewportTypeId});
+                options.Views.Add(new ViewRequest{Number=row.Number,TitleSuffix=row.TitleSuffix,DetailNumber=(row.DetailNumber??"").Trim(),Kind=row.Kind,Label=row.Label,OffsetMm=offset,SideMm=MarginValue(row.SideText,row.Label+" — в стороны"),AboveMm=MarginValue(row.AboveText,row.Label+" — вверх"),BelowMm=MarginValue(row.BelowText,row.Label+" — вниз"),Prefix=row.Prefix,Suffix=row.Suffix,TemplateId=row.TemplateId,ViewportTypeId=row.ViewportTypeId});
             }
             options.LayoutCells=options.UseLayout&&options.Views.Count>0?ReadLayout():null;
             AddSchedules(options);
             if(options.Views.Count==0&&options.Schedules.Count==0) throw new ArgumentException("Выберите хотя бы один вид или спецификацию.");
             if(options.CreateSheet)
             {
+                ElementViewMath.ValidateDetailNumbers(options.Views.Select(v=>v.DetailNumber));
                 if(!(TitleBlockComboBox.SelectedItem is Choice block)) throw new ArgumentException("Выберите основную надпись.");
                 options.SheetLeftMm=MarginValue(SheetLeftTextBox.Text,"лист слева");options.SheetTopMm=MarginValue(SheetTopTextBox.Text,"лист сверху");options.SheetGapMm=MarginValue(SheetGapTextBox.Text,"зазор видов");
                 options.FormatA=FormatATextBox.Text.Trim();options.FormatX=FormatXTextBox.Text.Trim();
@@ -103,7 +104,7 @@ namespace ARV.ElementViews
                 SheetLeft=SheetLeftTextBox.Text,SheetTop=SheetTopTextBox.Text,SheetGap=SheetGapTextBox.Text,
                 FormatA=FormatATextBox.Text,FormatX=FormatXTextBox.Text,SheetPrefix=SheetPrefixTextBox.Text,SheetSuffix=SheetSuffixTextBox.Text,
                 Parameter=SavedChoice.From(SelectedParameter()),SectionType=SavedChoice.From(SectionTypeComboBox.SelectedItem as Choice),TitleBlock=SavedChoice.From(TitleBlockComboBox.SelectedItem as Choice),
-                Rows=Rows.Select(row=>new SavedRow{Label=row.Label,Side=row.SideText,Above=row.AboveText,Below=row.BelowText,TitleSuffix=row.TitleSuffix,Enabled=row.Enabled,Prefix=row.Prefix,Suffix=row.Suffix,Offset=row.OffsetText,
+                Rows=Rows.Select(row=>new SavedRow{Label=row.Label,Side=row.SideText,Above=row.AboveText,Below=row.BelowText,TitleSuffix=row.TitleSuffix,DetailNumber=row.DetailNumber,Enabled=row.Enabled,Prefix=row.Prefix,Suffix=row.Suffix,Offset=row.OffsetText,
                     Template=SavedChoice.From(catalog.Templates.FirstOrDefault(c=>c.Id==row.TemplateId)),Viewport=SavedChoice.From(catalog.ViewportTypes.FirstOrDefault(c=>c.Id==row.ViewportTypeId))}).ToList()};
         }
         public void ApplySettings(UserSettings saved)
@@ -137,7 +138,7 @@ namespace ARV.ElementViews
             SheetLeftTextBox.Text=sheetLeft;SheetTopTextBox.Text=sheetTop;SheetGapTextBox.Text=sheetGap;
             SheetPrefixTextBox.Text=saved.SheetPrefix;SheetSuffixTextBox.Text=saved.SheetSuffix;
             foreach(var row in resolved)
-            {row.Target.SideText=row.Side;row.Target.AboveText=row.Above;row.Target.BelowText=row.Below;row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??(row.Saved.Viewport!=null?-2:-1);}
+            {row.Target.SideText=row.Side;row.Target.AboveText=row.Above;row.Target.BelowText=row.Below;row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.DetailNumber=row.Saved.DetailNumber??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??(row.Saved.Viewport!=null?-2:-1);}
             RefreshPreview();ValidationMessage.Visibility=Visibility.Collapsed;
         }
         private readonly List<TextBox> layoutBoxes=new List<TextBox>();

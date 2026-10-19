@@ -112,7 +112,7 @@ namespace ARV.ElementViews
                                         stage.Start();
                                         try
                                         {
-                                            int overflow=Place(doc,sheet,created,options,scheduleLayout.Left);
+                                            int overflow=Place(doc,sheet,created,options,scheduleLayout.Left,warnings);
                                             if(stage.Commit()!=TransactionStatus.Committed)throw new InvalidOperationException("Не подтверждено размещение.");
                                             if(overflow>0)warnings.Add("Виды и лист сохранены. За полезную область или в зону спецификаций выходит видов: "+overflow+". Расположение по схеме сохранено; поправьте компоновку вручную.");
                                         }
@@ -150,6 +150,47 @@ namespace ARV.ElementViews
         {
             internal Viewport Port;
         }
+        private static void AssignDetailNumbers(Document doc,ViewSheet sheet,IList<PlacedView> ports,Options options,List<string> warnings)
+        {
+            if(!options.Views.Any(v=>!string.IsNullOrWhiteSpace(v.DetailNumber)))return;
+            using(var stage=new SubTransaction(doc))
+            {
+                stage.Start();
+                try
+                {
+                    var parameters=ports.Select(p=>p.Port.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)).ToArray();
+                    var current=parameters.Select(p=>p?.AsString()??"").ToArray();
+                    var ids=new HashSet<int>(ports.Select(p=>p.Port.Id.IntegerValue));
+                    var occupied=sheet.GetAllViewports().Where(id=>!ids.Contains(id.IntegerValue)).Select(id=>doc.GetElement(id).get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString()??"").ToArray();
+                    var final=ElementViewMath.DetailNumbers(current,options.Views.Select(v=>v.DetailNumber).ToArray(),occupied);
+                    var changed=Enumerable.Range(0,ports.Count).Where(i=>current[i]!=final[i]).ToArray();
+                    foreach(int i in changed)
+                        if(parameters[i]==null||parameters[i].IsReadOnly||parameters[i].StorageType!=StorageType.String)
+                            throw new InvalidOperationException("Недоступен номер видового экрана: "+options.Views[i].Label);
+                    var used=new HashSet<string>(current.Concat(final).Concat(occupied),StringComparer.OrdinalIgnoreCase);
+                    int serial=1;
+                    foreach(int i in changed)
+                    {
+                        string temporary;
+                        do{temporary="ARV_TMP_"+(serial++);}while(!used.Add(temporary));
+                        parameters[i].Set(temporary);
+                        if(parameters[i].AsString()!=temporary)throw new InvalidOperationException("Не удалось освободить номер вида.");
+                    }
+                    doc.Regenerate();
+                    foreach(int i in changed)parameters[i].Set(final[i]);
+                    doc.Regenerate();
+                    for(int i=0;i<parameters.Length;i++)
+                        if(parameters[i]?.AsString()!=final[i])throw new InvalidOperationException("Revit не сохранил номер вида: "+options.Views[i].Label);
+                    if(stage.Commit()!=TransactionStatus.Committed)throw new InvalidOperationException("Нумерация не подтверждена.");
+                }
+                catch(Autodesk.Revit.Exceptions.RegenerationFailedException){throw;}
+                catch(Exception ex)
+                {
+                    if(stage.GetStatus()==TransactionStatus.Started)stage.RollBack();
+                    warnings.Add("Виды размещены; номера оставлены автоматическими: "+ex.Message);
+                }
+            }
+        }
         private static PaperRect Extents(PlacedView placed)
         {
             var box=placed.Port.GetBoxOutline();double x=box.MinimumPoint.X,y=box.MinimumPoint.Y,right=box.MaximumPoint.X,top=box.MaximumPoint.Y;
@@ -157,7 +198,7 @@ namespace ARV.ElementViews
             if(!label.IsEmpty) {x=Math.Min(x,label.MinimumPoint.X);y=Math.Min(y,label.MinimumPoint.Y);right=Math.Max(right,label.MaximumPoint.X);top=Math.Max(top,label.MaximumPoint.Y);}
             return ElementViewMath.FrameAlignedBounds(new PaperRect(x,y,right-x,top-y),placed.Port.GetBoxCenter().X);
         }
-        private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options,double? schedulesLeft)
+        private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options,double? schedulesLeft,List<string> warnings)
         {
             if(views.Count==0)return 0;
             var ports=new List<PlacedView>();
@@ -176,6 +217,7 @@ namespace ARV.ElementViews
                 }
                 ports.Add(new PlacedView{Port=port});
             }
+            AssignDetailNumbers(doc,sheet,ports,options,warnings);
             doc.Regenerate();
             var bounds=ports.Select(port=>Extents(port)).ToList();
             var sheetBox=sheet.Outline;

@@ -31,7 +31,7 @@ namespace ARV.ElementViews
     [DataContract]
     public sealed class SavedRow
     {
-        [DataMember] public string Label,Prefix,Suffix,Offset,TitleSuffix,Side,Above,Below;
+        [DataMember] public string Label,Prefix,Suffix,Offset,TitleSuffix,Side,Above,Below,DetailNumber;
         [DataMember] public bool Enabled;
         [DataMember] public SavedChoice Template,Viewport;
     }

@@ -8,6 +8,15 @@ internal static class ElementViewTests
     static bool Near(double a,double b)=>Math.Abs(a-b)<1e-8;
     internal static void Run(Action<bool,string> check)
     {
+        check(ElementViewMath.DetailNumbers(new[]{"1","2"},new[]{"2","1"},new string[0]).SequenceEqual(new[]{"2","1"}),"viewport detail numbers can swap");
+        check(ElementViewMath.DetailNumbers(new[]{"1","2","3"},new[]{"",null," "},new string[0]).SequenceEqual(new[]{"1","2","3"}),"empty requested numbers preserve automatic values");
+        check(ElementViewMath.DetailNumbers(new[]{"2","3","1"},new[]{"3","",""},new string[0]).SequenceEqual(new[]{"3","2","1"}),"manual number wins while nonconflicting automatic numbers remain");
+        check(ElementViewMath.DetailNumbers(new[]{"1","2"},new[]{" 2-2 ","А"},new string[0]).SequenceEqual(new[]{"2-2","А"}),"detail numbers support trimmed textual labels");
+        check(Throws(()=>ElementViewMath.ValidateDetailNumbers(new[]{"A"," a "})),"duplicate explicit detail numbers rejected before sheet creation");
+        check(Throws(()=>ElementViewMath.DetailNumbers(new[]{"1"},new[]{"7"},new[]{"7"})),"existing unrelated viewport number not overwritten");
+        check(Throws(()=>ElementViewMath.DetailNumbers(new[]{"1"},new string[0],new string[0])),"detail number count mismatch rejected");
+        check(ElementViewMath.DetailNumbers(new[]{"",""},new[]{"",""},new[]{"1"}).SequenceEqual(new[]{"2","3"}),"new automatic numbers avoid occupied values");
+        check(ElementViewMath.DetailNumbers(new string[0],new string[0],new string[0]).Count==0,"empty viewport list is supported");
         var columns=Enumerable.Range(0,50).Select(i=>new ElementCandidate{Id=i,Z=i,X=50-i,Y=i,Value="К"+(i%17)}).ToArray();
         var unique=ElementViewMath.Select(columns,true);
         check(unique.Count==17 && unique.All(c=>c.Id<17),"50 columns -> 17 marks, lowest instance selected");

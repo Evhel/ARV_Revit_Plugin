@@ -198,7 +198,16 @@ $titleCell=@($textCells | Where-Object {$_.DataContext -eq $elementDialog.Rows[0
 if(-not $titleCell){throw 'Actual sheet-title cell not generated'}
 $titleCell.Text='Разрез'
 if($elementDialog.Rows[0].TitleSuffix -cne 'Разрез'){throw 'Editing title cell did not update settings'}
+$detailCell=@($textCells | Where-Object {$_.DataContext -eq $elementDialog.Rows[0] -and $_.GetBindingExpression([Windows.Controls.TextBox]::TextProperty).ParentBinding.Path.Path -eq 'DetailNumber'})[0]
+if(-not $detailCell){throw 'Detail number column missing'}
+$detailCell.Text='2-2'
+if($elementDialog.Rows[0].DetailNumber -cne '2-2'){throw 'Detail number editor binding failed'}
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$elementDialog.Rows[3].DetailNumber='2-2';$badDetail=$false
+try{$null=$elementDialog.BuildOptions()}catch{$badDetail=$true}
+if(-not $badDetail){throw 'Duplicate sheet detail numbers accepted'}
+$elementDialog.Rows[3].DetailNumber=''
+if($elementDialog.BuildOptions().Views[0].DetailNumber -cne '2-2'){throw 'View request lost detail number'}
 $elementDialog.FindName('UseLayoutCheckBox').IsChecked=$true
 $layoutGrid=$elementDialog.FindName('LayoutGrid')
 $layoutGrid.Children[0].Text='7';$layoutGrid.Children[1].Text='4';$layoutGrid.Children[2].Text='1'
@@ -226,12 +235,15 @@ $loaded=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$settin
 $elementDialog.Rows[0].Prefix='changed';$elementDialog.Rows[0].TemplateId=2;$elementDialog.Rows[0].ViewportTypeId=-1
 $elementDialog.ApplySettings($loaded)
 if($elementDialog.Rows[0].Prefix -cne 'КЖ3_Арм_Пилон_' -or $elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.Rows[0].ViewportTypeId -ne 22){throw 'Settings round-trip lost names or selections'}
+if($loaded.Rows[0].DetailNumber -cne '2-2' -or $elementDialog.Rows[0].DetailNumber -cne '2-2'){throw 'Detail number JSON round trip failed'}
 if($loaded.Rows[0].Side -cne '50' -or $loaded.Rows[3].Below -cne '500' -or $loaded.FormatA -cne '2' -or $loaded.FormatX -cne '3'){throw 'Per-row margins/format JSON round-trip lost'}
 if($loaded.SheetLeft -cne '25' -or $loaded.SheetTop -cne '30' -or $loaded.SheetGap -cne '12'){throw 'Sheet margin/gap JSON round-trip lost'}
 if($loaded.LayoutCells[0] -ne 7 -or $loaded.Rows[0].TitleSuffix -cne 'Разрез' -or -not $loaded.UseLayout){throw 'Grid/title settings round-trip lost'}
 $legacy=$elementDialog.CaptureSettings();$legacy.Version=1;$legacy.UseLayout=$false;$legacy.LayoutCells=$null
+$legacy.Rows[0].DetailNumber=$null
 $legacy.Side='110';$legacy.Above='120';$legacy.Below='130';$legacy.PlanPadding='140'
 $elementDialog.ApplySettings($legacy)
+if($elementDialog.Rows[0].DetailNumber){throw 'Old settings without detail number must leave it automatic'}
 if($elementDialog.Rows[0].SideText -cne '140' -or $elementDialog.Rows[0].AboveText -cne '140' -or $elementDialog.Rows[3].SideText -cne '110' -or $elementDialog.Rows[3].BelowText -cne '130'){throw 'Old global margins must migrate to all corresponding rows'}
 if($elementDialog.Rows[0].TemplateId -ne 4 -or $elementDialog.FindName('SheetLeftTextBox').Text -cne '20' -or $elementDialog.FindName('SheetGapTextBox').Text -cne '10'){throw 'Legacy settings must remain loadable with default sheet margins/gap'}
 $elementDialog.ApplySettings($loaded)
