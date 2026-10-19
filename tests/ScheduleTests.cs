@@ -18,7 +18,7 @@ public static class ScheduleTests
         check(Throws(()=>SheetMargins.Frame(0,0,20/304.8,100/304.8)),"paper too small for mandatory frame rejected");
         check(Throws(()=>SheetMargins.Frame(0,0,double.NaN,1)),"nonfinite paper dimensions rejected");
         var corner=ScheduleLayoutMath.PackRight(new[]{new PaperRect(0,0,.2,.3)},new[]{1},new[]{0,1,0,0,0,0,0,0,0,0},0)[0];
-        check(Near((frame.Right+corner.X+corner.Width)*304.8,415)&&Near((frame.Top-corner.Y)*304.8,292),"schedule top right anchors to frame with both 5 mm insets");
+        check(Near((frame.Right+corner.X+corner.Width)*304.8,415)&&Near((frame.Top-ScheduleLayoutMath.TopGapFeet-corner.Y)*304.8,287),"schedule top right is 10 mm below paper top and 5 mm from paper right");
         int[] cells={7,1,0,4,0,0,0,0,0,0};
         var sizes=new[]{new PaperRect(0,0,2,3),new PaperRect(0,0,1,2),new PaperRect(0,0,4,5)};
         var placed=ScheduleLayoutMath.PackRight(sizes,new[]{1,4,7},cells,1);

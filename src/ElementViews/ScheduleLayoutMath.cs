@@ -8,6 +8,8 @@ namespace ARV.ElementViews
         // Autodesk development team: invisible schedule margin is 1/12 inch.
         // https://forums.autodesk.com/t5/revit-api-forum/schedulesheetinstance-bounding-box/m-p/7620115
         public const double InvisibleMarginFeet=1.0/144;
+        // Additional gap below the sheet frame: 5 mm frame + 5 mm gap = 10 mm from paper.
+        public const double TopGapFeet=5.0/304.8;
         public static PaperRect VisibleBounds(PaperRect box)
         {
             double margin=InvisibleMarginFeet;

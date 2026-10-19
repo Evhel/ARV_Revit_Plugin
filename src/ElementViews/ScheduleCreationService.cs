@@ -125,14 +125,14 @@ namespace ARV.ElementViews
                     for(int i=0;i<instances.Count;i++)
                     {
                         var b=bounds[i];var p=positions[i];
-                        var shift=new XYZ(frame.Right+p.X-b.X,frame.Top-p.Y-(b.Y+b.Height),0);
+                        var shift=new XYZ(frame.Right+p.X-b.X,frame.Top-ScheduleLayoutMath.TopGapFeet-p.Y-(b.Y+b.Height),0);
                         instances[i].Point=instances[i].Point+shift;
                     }
                     doc.Regenerate();
                     if(stage.Commit()!=TransactionStatus.Committed)throw new InvalidOperationException("Не подтверждена компоновка спецификаций.");
                     result.Count=instances.Count;
                     if(positions.Count>0)result.Left=frame.Right+positions.Min(p=>p.X);
-                    int outside=positions.Count(p=>frame.Right+p.X<frame.Left-1e-8||p.Y+p.Height>frame.Height-55/304.8+1e-8);
+                    int outside=positions.Count(p=>frame.Right+p.X<frame.Left-1e-8||p.Y+p.Height>frame.Height-ScheduleLayoutMath.TopGapFeet-55/304.8+1e-8);
                     if(outside>0)warnings.Add("Спецификации сохранены; за лист или в нижнюю зону основной надписи выходит: "+outside+". Исправьте расположение вручную.");
                 }
                 catch(Autodesk.Revit.Exceptions.RegenerationFailedException){throw;}
