@@ -77,6 +77,12 @@
         <Compile Include="Command.cs"/>
         <Compile Include="Models.cs"/>
         <Compile Include="SettingsFile.cs"/>
+        <Compile Include="ScheduleModels.cs"/>
+        <Compile Include="ScheduleSettings.cs"/>
+        <Compile Include="ScheduleCatalog.cs"/>
+        <Compile Include="ScheduleFilterTools.cs"/>
+        <Compile Include="ScheduleCreationService.cs"/>
+        <Compile Include="ScheduleLayoutMath.cs"/>
         <Compile Include="SheetFormatParameters.cs"/>
         <Compile Include="ElementViewMath.cs"/>
         <Compile Include="CatalogBuilder.cs"/>

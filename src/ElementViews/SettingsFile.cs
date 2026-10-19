@@ -36,9 +36,20 @@ namespace ARV.ElementViews
         [DataMember] public SavedChoice Template,Viewport;
     }
     [DataContract]
+    public sealed class SavedScheduleRow
+    {
+        [DataMember] public int Number,FilterIndex=-1;
+        [DataMember] public SavedChoice Source,ViewParameter;
+        [DataMember] public bool Copy=true;
+        [DataMember] public string FilterName,OperatorKey;
+    }
+    [DataContract]
     public sealed class UserSettings
     {
-        [DataMember] public int Version=4;
+        [DataMember] public int Version=5;
+        [DataMember] public List<SavedScheduleRow> Schedules;
+        [DataMember] public int[] ScheduleCells;
+        [DataMember] public string ScheduleGap="10";
         [DataMember] public bool Unique,CreateSheet,UseLayout;
         [DataMember] public int LayoutRows=2,LayoutColumns=3;
         [DataMember] public int[] LayoutCells;
@@ -62,7 +73,7 @@ namespace ARV.ElementViews
             if(info.Length>1024*1024) throw new InvalidDataException("Файл настроек слишком большой.");
             UserSettings settings;
             using(var stream=info.OpenRead()) settings=(UserSettings)new DataContractJsonSerializer(typeof(UserSettings)).ReadObject(stream);
-            if(settings==null || (settings.Version<1 || settings.Version>4) || settings.Rows==null || settings.Rows.Count!=7 || settings.Rows.Any(row=>row==null) || settings.Rows.Select(row=>row.Label).Distinct().Count()!=7)
+            if(settings==null || (settings.Version<1 || settings.Version>5) || settings.Rows==null || settings.Rows.Count!=7 || settings.Rows.Any(row=>row==null) || settings.Rows.Select(row=>row.Label).Distinct().Count()!=7)
                 throw new InvalidDataException("Неподдерживаемый или неполный файл настроек.");
             return settings;
         }

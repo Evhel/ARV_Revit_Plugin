@@ -50,6 +50,7 @@ namespace ARV.ElementViews
             result.ViewportTypes.AddRange(new FilteredElementCollector(doc).OfClass(typeof(ElementType)).Cast<ElementType>()
                 .Where(t=>t.get_Parameter(BuiltInParameter.VIEWPORT_ATTR_LABEL_TAG)!=null)
                 .OrderBy(t=>t.Name,Algorithms.NameComparer).Select(t=>new Choice{Id=t.Id.IntegerValue,Name=t.Name}));
+            ScheduleCatalog.Fill(doc,result);
             return result;
         }
         private static void ReadParameters(Element e,bool type,ElementData item,Dictionary<string,Choice> choices)

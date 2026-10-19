@@ -35,6 +35,7 @@ namespace ARV.ElementViews
         public List<Choice> Templates {get;set;}=new List<Choice>();
         public List<Choice> TitleBlocks {get;set;}=new List<Choice>();
         public List<Choice> ViewportTypes {get;set;}=new List<Choice>();
+        public List<ScheduleInfo> Schedules {get;set;}=new List<ScheduleInfo>();
         public int UnsupportedCount {get;set;}
         public int EmptyCount(string key)=>Elements.Count(e=>string.IsNullOrWhiteSpace(e.Candidate(key).Value));
         public List<ElementCandidate> Select(string key,bool unique) => ElementViewMath.Select(Elements.Select(e=>e.Candidate(key)),unique);
@@ -81,6 +82,9 @@ namespace ARV.ElementViews
         public int SectionTypeId,TitleBlockId;
         public double SheetLeftMm=20,SheetTopMm=20,SheetGapMm=10;
         public List<ViewRequest> Views=new List<ViewRequest>();
+        public List<ScheduleRequest> Schedules=new List<ScheduleRequest>();
+        public int[] ScheduleCells;
+        public double ScheduleGapMm=10;
     }
     public sealed class SkippedElement
     {
@@ -89,7 +93,7 @@ namespace ARV.ElementViews
     }
     public sealed class CreationResult
     {
-        public int Selected,Filtered,EmptyExcluded,Completed,Views,Sheets;
+        public int Selected,Filtered,EmptyExcluded,Completed,Views,Sheets,ScheduleCopies,SchedulePlacements;
         public List<SkippedElement> Skipped=new List<SkippedElement>();
         public List<SkippedElement> Warnings=new List<SkippedElement>();
     }

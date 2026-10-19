@@ -62,13 +62,24 @@ for($i=0;$i -lt 50;$i++) {
  foreach($x in @(0,1)){foreach($y in @(0,1)){foreach($z in @($bottom,($bottom+10))){$points.SetValue((New-ElementPoint $x $y $z),$n);$n++}}}
  $element.Corners=$points;$element.Values.Add('I:mark',('К-'+(($i%17)+1)));$elementCatalog.Elements.Add($element)
 }
+# Schedule catalog contains the three existing filter fields from the requested example.
+$scheduleInfo=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ScheduleInfo'));$scheduleInfo.Id=1001;$scheduleInfo.Name='Спецификация арматуры пилонов';$scheduleInfo.CanCopy=$true
+$filterNames=@('ADSK_Тип элемента КЖ','ADSK_Марка изделия','МеткаОсновы_Мрк.МаркаКонстр_ФИЛЬТРОВАТЬ ПО ЭТОМУ ПАРАМЕТРУ')
+for($i=0;$i -lt 3;$i++){
+ $field=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ScheduleFilterChoice'));$field.Index=$i;$field.Name=$filterNames[$i];$field.FieldName=$filterNames[$i];$field.ValueKind='String';$field.OperatorKey='Equal'
+ $field.Operators.Add((New-ElementChoice 0 'Equal' 'Равно'));$field.Operators.Add((New-ElementChoice 0 'Contains' 'Содержит'));$field.Operators.Add((New-ElementChoice 0 'HasParameter' 'Параметр существует'));$scheduleInfo.Filters.Add($field)
+}
+$scheduleInfo.Parameters.Add((New-ElementChoice -1 '' 'Не заполнять'));$scheduleInfo.Parameters.Add((New-ElementChoice 101 'String' 'Комментарии'))
+$elementCatalog.Schedules.Add($scheduleInfo)
+$secondSchedule=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ScheduleInfo'));$secondSchedule.Id=1002;$secondSchedule.Name='Ведомость деталей';$secondSchedule.CanCopy=$true;$secondSchedule.Parameters.Add((New-ElementChoice -1 '' 'Не заполнять'));$elementCatalog.Schedules.Add($secondSchedule)
+$thirdSchedule=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ScheduleInfo'));$thirdSchedule.Id=1003;$thirdSchedule.Name='Спецификация бетона';$thirdSchedule.CanCopy=$true;$thirdSchedule.Parameters.Add((New-ElementChoice -1 '' 'Не заполнять'));$elementCatalog.Schedules.Add($thirdSchedule)
 $elementDialog=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.MainWindow'),[object[]]@($elementCatalog))
 foreach($row in $elementDialog.Rows){$row.TemplateId=2}
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=1;$elementDialog.FindName('UniqueCheckBox').IsChecked=$true
 $elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
 if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 17 из 50' -or $elementDialog.Rows.Count -ne 7) {throw 'Element-view selection preview regression'}
 if ($elementDialog.Rows[0].Preview -cne 'КЖ3_Арм_Пилон_Пм-1_План1') {throw 'Element-view parameter naming regression'}
-$events = @('Click','SelectionChanged','TextChanged','PreviewTextInput','KeyDown')
+$events = @('Click','SelectionChanged','TextChanged','TextBoxBase.TextChanged','PreviewTextInput','KeyDown')
 $count = 0
 foreach ($case in $cases) {
     $renderName=if($case.renderName){$case.renderName}else{$case.project}
@@ -260,7 +271,7 @@ if(-not $failed -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Missin
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $layoutGrid.Children[0].Text='1';$layoutGrid.Children[1].Text='7';$layoutGrid.Children[2].Text='';$layoutGrid.Children[3].Text='4'
 $elementDialog.FindName('BodyScroll').ScrollToBottom()
-$elementDialog.FindName('SettingsTabs').SelectedIndex=1
+$elementDialog.FindName('SettingsTabs').SelectedItem=$elementDialog.FindName('SheetsTab')
 foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-sheets-'+$dpi+'.png'))}
 $elementDialog.FindName('ParameterComboBox').SelectedIndex=0
 $elementDialog.GetType().GetMethod('Ok_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@($null,[Windows.RoutedEventArgs]::new()))
@@ -268,10 +279,68 @@ if ($elementDialog.FindName('ValidationMessage').Text -notmatch 'парамет�
 $elementDialog.FindName('UniqueCheckBox').IsChecked=$false
 $elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
 if ($elementDialog.FindName('CountInfo').Text -notmatch 'К обработке: 50 из 50') {throw 'Unchecked unique filter must retain all elements'}
+# Actual schedule controls, live substring search, copy/no-copy, settings and placement cells.
+$elementDialog.FindName('ParameterComboBox').SelectedIndex=1;$elementDialog.FindName('UniqueCheckBox').IsChecked=$true;$elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$elementDialog.ScheduleRows[0].Source=$scheduleInfo;$elementDialog.ScheduleRows[0].Filter=$scheduleInfo.Filters[2];$elementDialog.ScheduleRows[0].OperatorKey='Contains';$elementDialog.ScheduleRows[0].ViewParameter=$scheduleInfo.Parameters[1]
+$elementDialog.ScheduleRows[1].Source=$secondSchedule;$elementDialog.ScheduleRows[1].Copy=$false
+$elementDialog.GetType().GetMethod('FillScheduleLayout_Click',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@($null,[Windows.RoutedEventArgs]::new()))
+$built=$elementDialog.BuildOptions()
+if($built.Schedules.Count -ne 2 -or $built.Schedules[0].FilterIndex -ne 2 -or $built.Schedules[0].FilterName -cne $filterNames[2] -or $built.Schedules[0].OperatorKey -cne 'Contains' -or $built.Schedules[0].ViewParameterId -ne 101){throw 'Schedule filter/view parameter settings lost'}
+if($built.Schedules[1].Copy -or $built.Schedules[1].FilterIndex -ne -1 -or $built.Schedules[1].ViewParameterId -ne -1 -or $elementDialog.ScheduleRows[1].CanEdit){throw 'Reuse must not change source schedule'}
+if($built.ScheduleCells[1] -ne 1 -or $built.ScheduleCells[3] -ne 2){throw 'Default schedules must stack downward from right corner'}
+$elementDialog.GetType().GetMethod('RefreshPreview',[Reflection.BindingFlags]'NonPublic,Instance').Invoke($elementDialog,@())
+$elementDialog.FindName('SettingsTabs').SelectedItem=$elementDialog.FindName('SchedulesTab')
+$elementDialog.FindName('BodyScroll').ScrollToTop()
+foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-schedules-'+$dpi+'.png'))}
+$scheduleCombos=@(Find-VisualCombos ($elementDialog.FindName('SchedulesGrid')))
+$sourceCombo=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[0] -and $_.IsEditable})[0]
+if(-not $sourceCombo){throw 'Editable schedule selector missing'}
+$sourceCombo.Text='ведом'
+if(@($sourceCombo.ItemsSource).Count -ne 1 -or @($sourceCombo.ItemsSource)[0].Id -ne 1002){throw 'Typing must narrow dropdown by substring'}
+$sourceCombo.Text='';$sourceCombo.SelectedItem=$scheduleInfo
+$elementDialog.ScheduleRows[0].Filter=$scheduleInfo.Filters[2];$elementDialog.ScheduleRows[0].OperatorKey='Contains';$elementDialog.ScheduleRows[0].ViewParameter=$scheduleInfo.Parameters[1]
+$disabled=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[1] -and -not $_.IsEditable -and $_.IsEnabled})
+if($disabled.Count -ne 0){throw 'All fields after copy checkbox must be disabled for reused schedules'}
+$scheduleSaved=$elementDialog.CaptureSettings()
+$schedulePath=Join-Path $out 'element-views-schedules-settings.json'
+$saveArgs=New-Object object[] 2;$saveArgs[0]=[string]$schedulePath;$saveArgs[1]=$scheduleSaved.PSObject.BaseObject
+$settingsType.GetMethod('Save').Invoke($null,$saveArgs)
+$roundTrip=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$schedulePath))
+$elementDialog.ScheduleRows[0].Source=$null;$elementDialog.ApplySettings($roundTrip)
+if($elementDialog.ScheduleRows[0].Source.Id -ne 1001 -or $elementDialog.ScheduleRows[0].Filter.Index -ne 2 -or $elementDialog.ScheduleRows[0].OperatorKey -cne 'Contains' -or $elementDialog.ScheduleRows[1].Copy){throw 'Schedule settings round-trip regression'}
+$roundTrip.Schedules[0].Source.Id=99999;$elementDialog.ApplySettings($roundTrip)
+if($elementDialog.ScheduleRows[0].Source.Id -ne 1001){throw 'Cross-project schedule source must resolve by name'}
+$roundTrip.Schedules[0].Source.Name='Missing schedule';$beforeName=$elementDialog.ScheduleRows[0].Source.Name;$badSaved=$false
+try{$elementDialog.ApplySettings($roundTrip)}catch{$badSaved=$true}
+if(-not $badSaved -or $elementDialog.ScheduleRows[0].Source.Name -cne $beforeName){throw 'Invalid saved schedule must not partly overwrite form'}
+$elementDialog.ScheduleRows[0].OperatorKey='HasParameter'
+if($elementDialog.ScheduleRows[0].FilterValue -cne 'Не требуется'){throw 'Parameter-exists filter must not require a mark value'}
+$elementDialog.ScheduleRows[0].OperatorKey='Contains'
+$grid=$elementDialog.FindName('ScheduleLayoutGrid');$grid.Children[0].Text='2';$grid.Children[1].Text='1';$grid.Children[3].Text=''
+$elementDialog.FindName('SettingsTabs').SelectedItem=$elementDialog.FindName('SheetsTab')
+foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-sheets-'+$dpi+'.png'))}
+$grid.Children[3].Text='1';$badGrid=$false;try{$null=$elementDialog.BuildOptions()}catch{$badGrid=$true}
+if(-not $badGrid){throw 'Duplicate schedule layout number accepted'}
+$grid.Children[3].Text=''
+$elementDialog.FindName('CreateSheetCheckBox').IsChecked=$false;$badSheet=$false;try{$null=$elementDialog.BuildOptions()}catch{$badSheet=$true}
+if(-not $badSheet){throw 'Schedules must require a sheet'}
+$elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
+$elementDialog.ScheduleRows[1].Source=$scheduleInfo;$elementDialog.ScheduleRows[1].Copy=$true;$elementDialog.ScheduleRows[1].Filter=$scheduleInfo.Filters[0];$elementDialog.ScheduleRows[1].OperatorKey='Equal';$elementDialog.ScheduleRows[1].ViewParameter=$scheduleInfo.Parameters[0]
+$separate=$elementDialog.BuildOptions()
+if($separate.Schedules[0].FilterIndex -ne 2 -or $separate.Schedules[0].ViewParameterId -ne 101 -or $separate.Schedules[1].FilterIndex -ne 0 -or $separate.Schedules[1].ViewParameterId -ne -1){throw 'Rows using same source must keep independent filter/parameter choices'}
+$enabledRows=@($elementDialog.Rows | ForEach-Object {$_.Enabled});foreach($row in $elementDialog.Rows){$row.Enabled=$false}
+$onlySchedules=$elementDialog.BuildOptions()
+if($onlySchedules.Views.Count -ne 0 -or $onlySchedules.Schedules.Count -ne 2){throw 'Schedules-only sheet setup rejected'}
+for($i=0;$i -lt $elementDialog.Rows.Count;$i++){$elementDialog.Rows[$i].Enabled=$enabledRows[$i]}
+$elementDialog.ScheduleRows[1].Copy=$false;$elementDialog.ScheduleRows[0].Copy=$false;$elementDialog.ScheduleRows[1].Source=$scheduleInfo;$badReuse=$false;try{$null=$elementDialog.BuildOptions()}catch{$badReuse=$true}
+if(-not $badReuse){throw 'Same source schedule cannot be placed twice without copying'}
+$oldPreset=$elementDialog.CaptureSettings();$oldPreset.Version=4
+$elementDialog.ApplySettings($oldPreset)
+if(@($elementDialog.ScheduleRows | Where-Object {$_.Source}).Count -ne 0 -or @($elementDialog.FindName('ScheduleLayoutGrid').Children | Where-Object {$_.Text}).Count -ne 0){throw 'Old settings must clear schedule configuration'}
 $elementDialog.Close()
-$creation=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.CreationResult'));$creation.Completed=17;$creation.Views=51;$creation.Sheets=17;$creation.Filtered=33
+$creation=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.CreationResult'));$creation.Completed=17;$creation.ScheduleCopies=17;$creation.SchedulePlacements=34;$creation.Views=51;$creation.Sheets=17;$creation.Filtered=33
 $elementReport=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.ReportWindow'),[object[]]@($creation))
-if ($elementReport.FindName('SkippedGrid').Visibility -ne 'Collapsed' -or $elementReport.FindName('SummaryText').Text -notmatch '51') {throw 'Element-view success summary regression'}
+if ($elementReport.FindName('SkippedGrid').Visibility -ne 'Collapsed' -or $elementReport.FindName('SummaryText').Text -notmatch '51' -or $elementReport.FindName('SummaryText').Text -notmatch 'Спецификаций скопировано: 17; размещено: 34') {throw 'Element-view success summary regression'}
 $elementReport.Close()
 $warning=[Activator]::CreateInstance($elementAssembly.GetType('ARV.ElementViews.SkippedElement'));$warning.Element='123';$warning.Reason='Виды сохранены за границей листа.'
 $creation.Warnings.Add($warning)

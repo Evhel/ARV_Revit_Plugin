@@ -11,7 +11,7 @@ namespace ARV.ElementViews
         {
             InitializeComponent();UiSupport.Initialize(this);
             ContextText.Text="Комплекты создаются отдельно для каждого отобранного элемента.";
-            SummaryText.Text="Обработано: "+result.Completed+". Виды: "+result.Views+". Листы: "+result.Sheets+". Не создано: "+result.Skipped.Count+". Требуют внимания: "+result.Warnings.Count+".\nИсключено отбором: "+result.Filtered+", из них пустых: "+result.EmptyExcluded+".";
+            SummaryText.Text="Обработано: "+result.Completed+". Виды: "+result.Views+". Листы: "+result.Sheets+". Спецификаций скопировано: "+result.ScheduleCopies+"; размещено: "+result.SchedulePlacements+". Не создано: "+result.Skipped.Count+". Требуют внимания: "+result.Warnings.Count+".\nИсключено отбором: "+result.Filtered+", из них пустых: "+result.EmptyExcluded+".";
             SkippedGrid.ItemsSource=result.Skipped.Concat(result.Warnings).ToList();
             if(result.Skipped.Count+result.Warnings.Count==0) {SkippedGrid.Visibility=Visibility.Collapsed;Width=620;Height=300;}
             else {SkippedGrid.Height=Math.Min(260,50+(result.Skipped.Count+result.Warnings.Count)*55);Height=Math.Min(550,280+SkippedGrid.Height);}

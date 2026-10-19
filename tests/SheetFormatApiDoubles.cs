@@ -16,7 +16,7 @@ namespace Autodesk.Revit.DB
     public static class SpecTypeId {public static readonly ForgeTypeId Number=new ForgeTypeId{TypeId="number"};}
     public class Definition {public string Name;public ForgeTypeId Spec=SpecTypeId.Number;public ForgeTypeId GetDataType()=>Spec;}
     public class Units {}
-    public class Document {public Units GetUnits()=>new Units();}
+    public class Document {public Units GetUnits()=>new Units();public Element GetElement(ElementId id)=>id.IntegerValue==7?new Element():null;}
     public static class UnitFormatUtils
     {
         public static bool TryParse(Units units,ForgeTypeId spec,string text,out double value)

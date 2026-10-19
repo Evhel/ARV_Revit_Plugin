@@ -28,6 +28,7 @@ namespace ARV.ElementViews
                     var numbers=new HashSet<string>(sheetNumbers,StringComparer.OrdinalIgnoreCase);
                     var warnings=new List<string>();
                     bool sheetCreated=false;
+                    int scheduleCopies=0,schedulePlacements=0;
                     using(var item=new SubTransaction(doc))
                     {
                         item.Start();
@@ -101,20 +102,26 @@ namespace ARV.ElementViews
                                     }
                                 }
                                 if(sheet!=null)
-                                using(var stage=new SubTransaction(doc))
                                 {
-                                    stage.Start();
-                                    try
+                                    var schedules=ScheduleCreationService.Create(doc,options,token,candidate.GroupKey,names,warnings);
+                                    scheduleCopies=schedules.Count(s=>s.Copied);
+                                    var scheduleLayout=ScheduleCreationService.Place(doc,sheet,schedules,options,warnings);
+                                    schedulePlacements=scheduleLayout.Count;
+                                    using(var stage=new SubTransaction(doc))
                                     {
-                                        int overflow=Place(doc,sheet,created,options);
-                                        if(stage.Commit()!=TransactionStatus.Committed) throw new InvalidOperationException("Не подтверждено размещение.");
-                                        if(overflow>0) warnings.Add("Виды и лист сохранены. За полезную область листа выходит видов: "+overflow+". При размещении по схеме порядок и оси сохранены; поправьте компоновку вручную.");
-                                    }
-                                    catch(Autodesk.Revit.Exceptions.RegenerationFailedException) {throw;}
-                                    catch(Exception ex)
-                                    {
-                                        if(stage.GetStatus()==TransactionStatus.Started) stage.RollBack();
-                                        warnings.Add("Виды и лист сохранены; виды не размещены: "+ex.Message);
+                                        stage.Start();
+                                        try
+                                        {
+                                            int overflow=Place(doc,sheet,created,options,scheduleLayout.Left);
+                                            if(stage.Commit()!=TransactionStatus.Committed)throw new InvalidOperationException("Не подтверждено размещение.");
+                                            if(overflow>0)warnings.Add("Виды и лист сохранены. За полезную область или в зону спецификаций выходит видов: "+overflow+". Расположение по схеме сохранено; поправьте компоновку вручную.");
+                                        }
+                                        catch(Autodesk.Revit.Exceptions.RegenerationFailedException){throw;}
+                                        catch(Exception ex)
+                                        {
+                                            if(stage.GetStatus()==TransactionStatus.Started)stage.RollBack();
+                                            warnings.Add("Виды, лист и спецификации сохранены; виды не размещены: "+ex.Message);
+                                        }
                                     }
                                 }
                             }
@@ -123,6 +130,7 @@ namespace ARV.ElementViews
                                     throw new InvalidOperationException("После обработки потерян шаблон вида: "+created[index].Name);
                             if(item.Commit()!=TransactionStatus.Committed) throw new InvalidOperationException("Revit не подтвердил создание комплекта.");
                             viewNames=names;sheetNumbers=numbers;
+                            result.ScheduleCopies+=scheduleCopies;result.SchedulePlacements+=schedulePlacements;
                             result.Completed++;result.Views+=created.Count;if(sheetCreated) result.Sheets++;
                             if(warnings.Count>0) result.Warnings.Add(new SkippedElement{Element=element.Id+" — "+element.Name,Reason=string.Join(" ",warnings)});
                         }
@@ -149,8 +157,9 @@ namespace ARV.ElementViews
             if(!label.IsEmpty) {x=Math.Min(x,label.MinimumPoint.X);y=Math.Min(y,label.MinimumPoint.Y);right=Math.Max(right,label.MaximumPoint.X);top=Math.Max(top,label.MaximumPoint.Y);}
             return ElementViewMath.FrameAlignedBounds(new PaperRect(x,y,right-x,top-y),placed.Port.GetBoxCenter().X);
         }
-        private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options)
+        private static int Place(Document doc,ViewSheet sheet,IList<ViewSection> views,Options options,double? schedulesLeft)
         {
+            if(views.Count==0)return 0;
             var ports=new List<PlacedView>();
             for(int index=0;index<views.Count;index++)
             {
@@ -172,7 +181,8 @@ namespace ARV.ElementViews
             var sheetBox=sheet.Outline;
             double rightMargin=20/304.8,bottom=55/304.8,gap=options.SheetGapMm/304.8;
             double left=sheetBox.Min.U+options.SheetLeftMm/304.8,top=sheetBox.Max.V-options.SheetTopMm/304.8;
-            double width=sheetBox.Max.U-rightMargin-left,height=top-(sheetBox.Min.V+bottom);
+            double right=schedulesLeft.HasValue?Math.Min(sheetBox.Max.U-rightMargin,schedulesLeft.Value-gap):sheetBox.Max.U-rightMargin;
+            double width=right-left,height=top-(sheetBox.Min.V+bottom);
             var positions=options.UseLayout
                 ?ElementViewMath.PackByContent(bounds,options.Views.Select(v=>v.Number).ToArray(),options.LayoutCells,options.LayoutRows,options.LayoutColumns,gap)
                 :ElementViewMath.PackPreserving(bounds,width,height,gap,sheetBox.Max.U-left+gap);
