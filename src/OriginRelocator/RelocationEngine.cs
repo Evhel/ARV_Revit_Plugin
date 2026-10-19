@@ -21,7 +21,7 @@ namespace Arv.OriginRelocator
                 if (group.Start() != TransactionStatus.Started) throw new InvalidOperationException("Не удалось начать операцию.");
                 try
                 {
-                    RunTransaction(doc, "Перенос модели", report, () =>
+                    RunTransaction(doc, "Перенос модели", report, plan, () =>
                     {
                         foreach (KeyValuePair<int, bool> pin in plan.Pins.Where(x => x.Value))
                             if (!plan.Ancestors(pin.Key).Any(id => doc.GetElement(new ElementId(id)) is Group))
@@ -49,7 +49,7 @@ namespace Arv.OriginRelocator
 #endif
                     });
 
-                    RunTransaction(doc, "Перенос видов и областей обрезки", report, () =>
+                    RunTransaction(doc, "Перенос видов и областей обрезки", report, plan, () =>
                     {
                         
                         foreach (ElementId id in plan.ElevationMarkers)
@@ -122,7 +122,7 @@ namespace Arv.OriginRelocator
                         doc.Regenerate();
                     });
 
-                    RunTransaction(doc, "Перенос оформления видов", report, () =>
+                    RunTransaction(doc, "Перенос оформления видов", report, plan, () =>
                     {
                         foreach (ViewGraphicState graphic in plan.ViewGraphics.Where(g => g.IsReference))
                         {
@@ -203,7 +203,7 @@ namespace Arv.OriginRelocator
                     });
 
                     // Finish annotation geometry before evaluating sheet-space viewport outlines.
-                    RunTransaction(doc, "Восстановление положения видов на листах", report, () =>
+                    RunTransaction(doc, "Восстановление положения видов на листах", report, plan, () =>
                     {
                         RestoreViewports(doc, plan, report);
                         VerifyAll(doc, plan, delta, report);
@@ -213,12 +213,14 @@ namespace Arv.OriginRelocator
                     VerifyAll(doc, plan, delta, report);
                     if (group.Assimilate() != TransactionStatus.Committed)
                         throw new InvalidOperationException("Revit не завершил операцию.");
-                    report.Lines.Add("УСПЕХ: проверены модель, виды, оформление, закрепление, связи и сохранность элементов.");
+                    report.Lines.Add("УСПЕХ: проверены модель, виды, оформление, закрепление, связи и сохранность элементов. Удалено некорректных размеров: " + report.DeletedInvalidDimensions.Count + ".");
                 }
                 catch
                 {
                     if (group.GetStatus() == TransactionStatus.Started) group.RollBack();
-                    report.Lines.Add("ОТКАТ: изменения операции отменены.");
+                    report.InvalidDimensionDeletionRequests.Clear();
+                    report.DeletedInvalidDimensions.Clear();
+                    report.Lines.Add("ОТКАТ: изменения операции, включая удаление некорректных размеров, отменены.");
                     throw;
                 }
             }
@@ -417,7 +419,7 @@ namespace Arv.OriginRelocator
         }
         internal static void VerifyOriginalElements(Document doc, RelocationPlan plan, RelocationReport report)
         {
-            List<int> missing = plan.OriginalIds.Where(id => doc.GetElement(new ElementId(id)) == null).ToList();
+            List<int> missing = plan.OriginalIds.Where(id => !report.DeletedInvalidDimensions.Contains(id) && doc.GetElement(new ElementId(id)) == null).ToList();
             if (missing.Count == 0) return;
             List<string> descriptions = new List<string>();
             foreach (int id in missing)
@@ -541,13 +543,13 @@ namespace Arv.OriginRelocator
                 throw new InvalidOperationException(stage + ": " + ex.Message, ex);
             }
         }
-        private static void RunTransaction(Document doc, string name, RelocationReport report, Action body)
+        private static void RunTransaction(Document doc, string name, RelocationReport report, RelocationPlan plan, Action body)
         {
             using (Transaction transaction = new Transaction(doc, name))
             {
                 if (transaction.Start() != TransactionStatus.Started) throw new InvalidOperationException("Не началась транзакция: " + name);
                 FailureHandlingOptions options = transaction.GetFailureHandlingOptions();
-                options.SetFailuresPreprocessor(new StrictFailures(report));
+                options.SetFailuresPreprocessor(new StrictFailures(report, plan));
                 options.SetClearAfterRollback(true);
                 transaction.SetFailureHandlingOptions(options);
                 try
@@ -555,6 +557,8 @@ namespace Arv.OriginRelocator
                     body();
                     if (transaction.Commit() != TransactionStatus.Committed)
                         throw new InvalidOperationException("Revit отменил этап «" + name + "». Подробности в отчёте.");
+                    InvalidDimensionRecovery.AcceptCommittedDeletions(doc, plan, report);
+                    VerifyOriginalElements(doc, plan, report);
                 }
                 catch
                 {
@@ -565,29 +569,4 @@ namespace Arv.OriginRelocator
         }
     }
 
-    internal sealed class StrictFailures : IFailuresPreprocessor
-    {
-        private readonly RelocationReport report;
-        public StrictFailures(RelocationReport report) { this.report = report; }
-        public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
-        {
-            bool error = false;
-            foreach (FailureMessageAccessor failure in accessor.GetFailureMessages())
-            {
-                report.Lines.Add("Revit / " + failure.GetSeverity() + ": " + failure.GetDescriptionText() +
-                    " / ID: " + string.Join(", ", failure.GetFailingElementIds().Select(x => x.IntegerValue)));
-                if (failure.GetSeverity() != FailureSeverity.Warning) error = true;
-                // Warnings are retained; no automatic deletion, constraint unlocking or rehosting.
-            }
-            return error ? FailureProcessingResult.ProceedWithRollBack : FailureProcessingResult.Continue;
-        }
-    }
 }
-
-
-
-
-
-
-
-

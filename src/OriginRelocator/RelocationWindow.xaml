@@ -60,7 +60,7 @@
                     </StackPanel>
                 </Border>
                 <Border Background="{StaticResource Arv.WarningBackground}" BorderBrush="{StaticResource Arv.Border}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,16">
-                    <TextBlock Text="Перенос затронет проект целиком. Высоты сохраняются; закрепление восстанавливается. Связи, оформление листов, чертёжные виды и легенды остаются на месте. Изменения можно отменить одной командой «Отменить»." TextWrapping="Wrap" Foreground="{StaticResource Arv.Warning}"/>
+                    <TextBlock Text="Перенос затронет проект целиком. Высоты сохраняются; закрепление восстанавливается. Связи, оформление листов, чертёжные виды и легенды остаются на месте. Размеры с некорректными опорами удаляются с записью ID в отчёт. Изменения можно отменить одной командой «Отменить»." TextWrapping="Wrap" Foreground="{StaticResource Arv.Warning}"/>
                 </Border>
             </StackPanel>
         </ScrollViewer>

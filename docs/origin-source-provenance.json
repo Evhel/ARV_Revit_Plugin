@@ -1,15 +1,11 @@
 {
   "StandaloneVersion": "1.0.20",
-  "SuiteVersion": "1.3.0",
+  "SuiteVersion": "1.6.5",
   "SourceFolder": "D:\\Prog\\Codex\\current-work\\revit-origin-relocator",
   "UnchangedCoreFiles": [
     {
       "File": "RelocationPlan.cs",
       "SHA256": "822d7095700d9135e3e807fdc912d206226d40e795655f6363e8826cf9ec8c5e"
-    },
-    {
-      "File": "RelocationEngine.cs",
-      "SHA256": "167a8c3fea6dc7020ab93c525a144fa9d776211ecc818a71fa8f7269bd9fdaf2"
     },
     {
       "File": "ElementState.cs",
@@ -20,12 +16,23 @@
       "SHA256": "9d569371e2f6008be4e298e6c6c9bac0cfc9120377a4aed858b5bc145ca1ef6e"
     }
   ],
-  "CommandChanges": "WPF confirmation, current Revit owner; report and model execution logic retained",
+  "CommandChanges": "WPF confirmation, current Revit owner; report records requested/committed dimension deletions and successful deletion count; rollback clears deletion counts.",
   "ExcludedFromProduction": [
     "SelfTestCommand",
     "DiagnosticsCommand",
     "SectionProbeCommand",
     "SectionOrderProbeCommand",
     "GroupProbeCommand"
+  ],
+  "ModifiedCoreFiles": [
+    {
+      "File": "RelocationEngine.cs",
+      "OriginalSHA256": "167a8c3fea6dc7020ab93c525a144fa9d776211ecc818a71fa8f7269bd9fdaf2",
+      "CurrentSHA256": "c5efe690bb3f1dbe346f7f67f8ec9238342ffc9fe527ffaa9df138fe6c3e421b",
+      "Changes": "DimensionReferencesInvalid recovery after committed stages; whitelist only confirmed removed dimensions in preservation checks; original view order and movement math retained."
+    }
+  ],
+  "AddedSuiteFiles": [
+    "StrictFailures.cs"
   ]
 }

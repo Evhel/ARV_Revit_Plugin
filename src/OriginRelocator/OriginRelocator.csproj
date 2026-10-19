@@ -75,7 +75,8 @@
     <ItemGroup>
         <Compile Include="Command.cs"/>
         <Compile Include="RelocationPlan.cs"/>
-        <Compile Include="RelocationEngine.cs"/>
+        <Compile Include="StrictFailures.cs" />
+    <Compile Include="RelocationEngine.cs"/>
         <Compile Include="ElementState.cs"/>
         <Compile Include="PresentationState.cs"/>
         <Compile Include="RelocationWindow.xaml.cs">

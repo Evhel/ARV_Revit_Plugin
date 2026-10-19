@@ -52,7 +52,8 @@ namespace Arv.OriginRelocator
                 string path = report.TrySave();
                 TaskDialog.Show("ARV — перенос выполнен",
                     "Выбранная точка совмещена с внутренним 0,0. Высоты сохранены.\n" +
-                    "Закрепление восстановлено; связи проверены.\n\nОтчёт: " + path);
+                    "Закрепление восстановлено; связи проверены.\n" +
+                    "Удалено размеров с некорректными опорами: " + report.DeletedInvalidDimensions.Count + ".\n\nОтчёт: " + path);
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
@@ -72,6 +73,8 @@ namespace Arv.OriginRelocator
 #endif
     internal sealed class RelocationReport
     {
+        public readonly System.Collections.Generic.HashSet<int> InvalidDimensionDeletionRequests = new System.Collections.Generic.HashSet<int>();
+        public readonly System.Collections.Generic.HashSet<int> DeletedInvalidDimensions = new System.Collections.Generic.HashSet<int>();
         public readonly System.Collections.Generic.List<string> Lines = new System.Collections.Generic.List<string>();
         public RelocationReport(string title)
         {
