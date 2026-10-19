@@ -179,10 +179,11 @@ namespace ARV.ElementViews
             doc.Regenerate();
             var bounds=ports.Select(port=>Extents(port)).ToList();
             var sheetBox=sheet.Outline;
-            double rightMargin=20/304.8,bottom=55/304.8,gap=options.SheetGapMm/304.8;
-            double left=sheetBox.Min.U+options.SheetLeftMm/304.8,top=sheetBox.Max.V-options.SheetTopMm/304.8;
-            double right=schedulesLeft.HasValue?Math.Min(sheetBox.Max.U-rightMargin,schedulesLeft.Value-gap):sheetBox.Max.U-rightMargin;
-            double width=right-left,height=top-(sheetBox.Min.V+bottom);
+            var frame=SheetMargins.Frame(sheetBox.Min.U,sheetBox.Min.V,sheetBox.Max.U,sheetBox.Max.V);
+            double bottom=frame.Bottom+55/304.8,gap=options.SheetGapMm/304.8;
+            double left=frame.Left+options.SheetLeftMm/304.8,top=frame.Top-options.SheetTopMm/304.8;
+            double right=schedulesLeft.HasValue?Math.Min(frame.Right,schedulesLeft.Value-gap):frame.Right;
+            double width=right-left,height=top-bottom;
             var positions=options.UseLayout
                 ?ElementViewMath.PackByContent(bounds,options.Views.Select(v=>v.Number).ToArray(),options.LayoutCells,options.LayoutRows,options.LayoutColumns,gap)
                 :ElementViewMath.PackPreserving(bounds,width,height,gap,sheetBox.Max.U-left+gap);

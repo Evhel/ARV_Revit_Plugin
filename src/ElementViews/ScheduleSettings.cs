@@ -76,7 +76,7 @@ namespace ARV.ElementViews
                 }
                 if(!options.CreateSheet)throw new ArgumentException("Для спецификаций включите создание листа на вкладке «Листы».");
                 if(row.Copy&&!row.CanCopy)throw new ArgumentException("Спецификацию нельзя копировать: "+row.Source.Name);
-                if(row.Copy&&row.Filters.Count>0&&(row.Filter==null||!row.Filter.Operators.Any(o=>o.Key==row.OperatorKey)))throw new ArgumentException("Выберите фильтр и допустимое условие: строка "+row.Number+".");
+                if(row.Copy&&(row.Filter==null||(row.Filter.Index>=0&&!row.Filter.Operators.Any(o=>o.Key==row.OperatorKey))))throw new ArgumentException("Выберите фильтр и допустимое условие: строка "+row.Number+".");
                 options.Schedules.Add(new ScheduleRequest{Number=row.Number,SourceId=row.Source.Id,SourceName=row.Source.Name,Copy=row.Copy,
                     ValueKind=row.Copy?row.Filter?.ValueKind:null,FilterIndex=row.Copy?row.Filter?.Index??-1:-1,FilterName=row.Copy?row.Filter?.FieldName:null,OperatorKey=row.Copy?row.OperatorKey:null,
                     ViewParameterId=row.Copy?row.ViewParameter?.Id??-1:-1,ViewParameterName=row.Copy?row.ViewParameter?.Name:null});
@@ -95,7 +95,7 @@ namespace ARV.ElementViews
         {
             if(ScheduleRows.Any(row=>row.Source!=null)&&ReadScheduleCells().All(n=>n==0))FillScheduleLayout_Click(null,null);
             return ScheduleRows.Select(row=>new SavedScheduleRow{Number=row.Number,Source=row.Source==null?null:new SavedChoice{Id=row.Source.Id,Name=row.Source.Name},Copy=row.Copy,
-                FilterIndex=row.Filter?.Index??-1,FilterName=row.Filter?.FieldName,OperatorKey=row.OperatorKey,ViewParameter=SavedChoice.From(row.ViewParameter)}).ToList();
+                FilterIndex=row.Filter?.Index??-2,FilterName=row.Filter?.FieldName,OperatorKey=row.OperatorKey,ViewParameter=SavedChoice.From(row.ViewParameter)}).ToList();
         }
         private Action PrepareScheduleSettings(UserSettings saved)
         {
@@ -109,25 +109,27 @@ namespace ARV.ElementViews
                 if(source==null&&item.Source!=null)
                 {
                     var named=catalog.Schedules.Where(s=>s.Name==item.Source.Name).ToList();
-                    if(named.Count!=1)throw new ArgumentException("В проекте не найдена спецификация «"+item.Source.Name+"».");source=named[0];
+                    if(named.Count==1)source=named[0];
                 }
-                ScheduleFilterChoice filter=null;Choice parameter=null;
+                if(item.Copy&&source!=null&&!source.CanCopy)source=null;
+                ScheduleFilterChoice filter=null;Choice parameter=null;string condition=null;
                 if(source!=null)
                 {
-                    if(item.Copy&&!source.CanCopy)throw new ArgumentException("Копирование недоступно: "+source.Name);
-                    filter=source.Filters.FirstOrDefault(f=>f.Index==item.FilterIndex&&f.FieldName==item.FilterName);
+                    filter=item.FilterIndex==-1?row.KeepFilters:source.Filters.FirstOrDefault(f=>f.Index==item.FilterIndex&&f.FieldName==item.FilterName);
                     if(filter==null&&item.FilterName!=null)
                     {var matches=source.Filters.Where(f=>f.FieldName==item.FilterName).ToList();if(matches.Count==1)filter=matches[0];}
-                    if(item.Copy&&source.Filters.Count>0&&(filter==null||!filter.Operators.Any(o=>o.Key==item.OperatorKey)))throw new ArgumentException("Не найден сохранённый фильтр/условие: "+source.Name);
-                    parameter=item.ViewParameter?.ResolveOptional(source.Parameters,"параметр спецификации",item.Copy&&item.ViewParameter?.Id!=-1)??source.Parameters.FirstOrDefault();
+                    condition=filter?.Operators.Any(o=>o.Key==item.OperatorKey)==true?item.OperatorKey:null;
+                    parameter=item.ViewParameter?.ResolveOptional(source.Parameters,"параметр спецификации",false);
                 }
-                return new {Row=row,Saved=item,Source=source,Filter=filter,Parameter=parameter};
+                return new {Row=row,Saved=item,Source=source,Filter=filter,Condition=condition,Parameter=parameter};
             }).ToList();
-            ScheduleLayoutMath.Validate(saved.ScheduleCells??new int[10],prepared.Where(p=>p.Source!=null).Select(p=>p.Row.Number).ToArray());
+            var available=prepared.Where(p=>p.Source!=null).Select(p=>p.Row.Number).ToArray();
+            var cells=(saved.ScheduleCells??new int[10]).Select(n=>available.Contains(n)?n:0).ToArray();
+            ScheduleLayoutMath.Validate(cells,available);
             return ()=>{
                 SchedulesGrid.ItemsSource=null;
-                foreach(var p in prepared){p.Row.Source=p.Source;p.Row.Copy=p.Saved.Copy;p.Row.Filter=p.Filter;p.Row.OperatorKey=p.Saved.OperatorKey;p.Row.ViewParameter=p.Parameter;}
-                SetScheduleCells(saved.ScheduleCells);ScheduleGapTextBox.Text=saved.ScheduleGap;SchedulesGrid.ItemsSource=ScheduleRows;
+                foreach(var p in prepared){p.Row.Source=p.Source;p.Row.Copy=p.Saved.Copy;p.Row.RestoreFilter(p.Filter,p.Condition);p.Row.ViewParameter=p.Parameter;}
+                SetScheduleCells(cells);ScheduleGapTextBox.Text=saved.ScheduleGap;SchedulesGrid.ItemsSource=ScheduleRows;
             };
         }
     }

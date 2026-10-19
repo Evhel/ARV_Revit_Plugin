@@ -87,7 +87,8 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
+    <Compile Include="..\Common\SheetMargins.cs"><Link>Common\SheetMargins.cs</Link></Compile>
+        <Compile Include="..\Common\Algorithms.cs"><Link>Common\Algorithms.cs</Link></Compile>
     <Compile Include="..\Common\RevitSupport.cs"><Link>Common\RevitSupport.cs</Link></Compile>
   </ItemGroup>
   <ItemGroup>

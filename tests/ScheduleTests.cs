@@ -1,12 +1,24 @@
 ﻿using System;
 using System.Linq;
 using ARV.ElementViews;
+using ARV.Common;
 public static class ScheduleTests
 {
     private static bool Near(double a,double b)=>Math.Abs(a-b)<1e-10;
     private static bool Throws(Action action){try{action();return false;}catch(ArgumentException){return true;}}
     public static void Run(Action<bool,string> check)
     {
+        var frame=SheetMargins.Frame(0,0,420/304.8,297/304.8);
+        check(Near(frame.Left*304.8,20)&&Near(frame.Top*304.8,292),"inner frame excludes left 20 mm and top 5 mm");
+        check(Near(frame.Right*304.8,415)&&Near(frame.Bottom*304.8,5),"inner frame excludes right and bottom 5 mm");
+        check(Near(frame.Width*304.8,395)&&Near(frame.Height*304.8,287),"paper margins excluded from usable dimensions");
+        check(Near((frame.Left+25/304.8)*304.8,45)&&Near((frame.Top-30/304.8)*304.8,262),"view offsets are additional to built-in frame margins");
+        var shifted=SheetMargins.Frame(-2,-3,2,3);
+        check(Near(shifted.Left,-2+20/304.8)&&Near(shifted.Top,3-5/304.8)&&Near(shifted.Right,2-5/304.8),"frame follows a shifted sheet origin");
+        check(Throws(()=>SheetMargins.Frame(0,0,20/304.8,100/304.8)),"paper too small for mandatory frame rejected");
+        check(Throws(()=>SheetMargins.Frame(0,0,double.NaN,1)),"nonfinite paper dimensions rejected");
+        var corner=ScheduleLayoutMath.PackRight(new[]{new PaperRect(0,0,.2,.3)},new[]{1},new[]{0,1,0,0,0,0,0,0,0,0},0)[0];
+        check(Near((frame.Right+corner.X+corner.Width)*304.8,415)&&Near((frame.Top-corner.Y)*304.8,292),"schedule top right anchors to frame with both 5 mm insets");
         int[] cells={7,1,0,4,0,0,0,0,0,0};
         var sizes=new[]{new PaperRect(0,0,2,3),new PaperRect(0,0,1,2),new PaperRect(0,0,4,5)};
         var placed=ScheduleLayoutMath.PackRight(sizes,new[]{1,4,7},cells,1);

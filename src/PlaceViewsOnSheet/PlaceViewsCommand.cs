@@ -44,8 +44,9 @@ namespace PlaceViewsOnSheet
                 {
                     transaction.Start();
                     var outline = sheet.Outline;
-                    double startX = outline.Min.U + 50.0 / 304.8;
-                    double startY = outline.Max.V - 50.0 / 304.8;
+                    var frame = SheetMargins.Frame(outline.Min.U, outline.Min.V, outline.Max.U, outline.Max.V);
+                    double startX = frame.Left + 50.0 / 304.8;
+                    double startY = frame.Top - 50.0 / 304.8;
                     foreach (var view in views)
                     {
                         using (var item = new SubTransaction(doc))

@@ -80,6 +80,7 @@ namespace ARV.ElementViews
                 double offset=0;
                 if(row.IsPlan && (!Algorithms.TryNumber(row.OffsetText,out offset)||offset<0)) throw new ArgumentException("Введите неотрицательную отметку в мм: "+row.Label+".");
                 if(row.TemplateId<=0 || !catalog.Templates.Any(c=>c.Id==row.TemplateId)) throw new ArgumentException("Выберите шаблон вида: "+row.Label+".");
+                if(options.CreateSheet&&!catalog.ViewportTypes.Any(c=>c.Id==row.ViewportTypeId))throw new ArgumentException("Выберите тип видового экрана: "+row.Label+".");
                 ElementViewMath.Name(row.Prefix,row.Token,row.Suffix);
                 options.Views.Add(new ViewRequest{Number=row.Number,TitleSuffix=row.TitleSuffix,Kind=row.Kind,Label=row.Label,OffsetMm=offset,SideMm=MarginValue(row.SideText,row.Label+" — в стороны"),AboveMm=MarginValue(row.AboveText,row.Label+" — вверх"),BelowMm=MarginValue(row.BelowText,row.Label+" — вниз"),Prefix=row.Prefix,Suffix=row.Suffix,TemplateId=row.TemplateId,ViewportTypeId=row.ViewportTypeId});
             }
@@ -108,10 +109,10 @@ namespace ARV.ElementViews
         public void ApplySettings(UserSettings saved)
         {
             if(saved==null||saved.Rows==null||saved.Rows.Count!=Rows.Count) throw new ArgumentException("Неполный файл настроек.");
-            // Resolve all project-dependent references before changing the current form.
-            var parameter=saved.Parameter?.Resolve(catalog.Parameters,"параметр")??catalog.Parameters.FirstOrDefault();
-            var section=saved.SectionType?.Resolve(catalog.SectionTypes,"тип разреза");
-            var block=saved.TitleBlock?.ResolveOptional(catalog.TitleBlocks,"основная надпись",saved.CreateSheet);
+            // Unavailable project references stay empty; independent settings still load.
+            var parameter=saved.Parameter?.ResolveOptional(catalog.Parameters,"параметр",false);
+            var section=saved.SectionType?.ResolveOptional(catalog.SectionTypes,"тип разреза",false);
+            var block=saved.TitleBlock?.ResolveOptional(catalog.TitleBlocks,"основная надпись",false);
             var resolved=Rows.Select(row=>{
                 var item=saved.Rows.SingleOrDefault(s=>s.Label==row.Label);
                 if(item==null) throw new ArgumentException("В настройках нет строки «"+row.Label+"».");
@@ -120,7 +121,7 @@ namespace ARV.ElementViews
                 string above=saved.Version<4?(row.IsPlan?oldPlan:saved.Above??"100"):item.Above;
                 string below=saved.Version<4?(row.IsPlan?oldPlan:saved.Below??"100"):item.Below;
                 MarginValue(side,row.Label+" — в стороны");MarginValue(above,row.Label+" — вверх");MarginValue(below,row.Label+" — вниз");
-                return new {Target=row,Saved=item,Side=side,Above=above,Below=below,Template=item.Template?.ResolveOptional(catalog.Templates,"шаблон",item.Enabled),Viewport=item.Viewport?.ResolveOptional(catalog.ViewportTypes,"тип видового экрана",saved.CreateSheet && item.Enabled)};
+                return new {Target=row,Saved=item,Side=side,Above=above,Below=below,Template=item.Template?.ResolveOptional(catalog.Templates,"шаблон",false),Viewport=item.Viewport?.ResolveOptional(catalog.ViewportTypes,"тип видового экрана",false)};
             }).ToList();
             if(saved.UseLayout && saved.CreateSheet && resolved.Any(row=>row.Saved.Enabled))
                 ElementViewMath.ValidateLayout(saved.LayoutCells,saved.LayoutRows,saved.LayoutColumns,resolved.Where(row=>row.Saved.Enabled).Select(row=>row.Target.Number).ToArray());
@@ -128,7 +129,7 @@ namespace ARV.ElementViews
             MarginValue(sheetLeft,"лист слева");MarginValue(sheetTop,"лист сверху");MarginValue(sheetGap,"зазор видов");
             var applySchedules=PrepareScheduleSettings(saved);
             applySchedules();
-            ParameterComboBox.SelectedItem=parameter;SectionTypeComboBox.SelectedItem=section;TitleBlockComboBox.SelectedItem=block;
+            ParameterComboBox.SelectedItem=parameter;if(parameter==null)ParameterComboBox.Text="";SectionTypeComboBox.SelectedItem=section;TitleBlockComboBox.SelectedItem=block;
             UniqueCheckBox.IsChecked=saved.Unique;CreateSheetCheckBox.IsChecked=saved.CreateSheet;UseLayoutCheckBox.IsChecked=saved.UseLayout;
             LayoutRowsCombo.SelectedItem=saved.LayoutRows>=1&&saved.LayoutRows<=4?saved.LayoutRows:2;LayoutColumnsCombo.SelectedItem=saved.LayoutColumns>=1&&saved.LayoutColumns<=4?saved.LayoutColumns:3;
             SetLayout(saved.LayoutCells);
@@ -136,7 +137,7 @@ namespace ARV.ElementViews
             SheetLeftTextBox.Text=sheetLeft;SheetTopTextBox.Text=sheetTop;SheetGapTextBox.Text=sheetGap;
             SheetPrefixTextBox.Text=saved.SheetPrefix;SheetSuffixTextBox.Text=saved.SheetSuffix;
             foreach(var row in resolved)
-            {row.Target.SideText=row.Side;row.Target.AboveText=row.Above;row.Target.BelowText=row.Below;row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??-1;}
+            {row.Target.SideText=row.Side;row.Target.AboveText=row.Above;row.Target.BelowText=row.Below;row.Target.TitleSuffix=row.Saved.TitleSuffix??"";row.Target.Enabled=row.Saved.Enabled;row.Target.Prefix=row.Saved.Prefix;row.Target.Suffix=row.Saved.Suffix;row.Target.OffsetText=row.Saved.Offset;row.Target.TemplateId=row.Template?.Id??-1;row.Target.ViewportTypeId=row.Viewport?.Id??(row.Saved.Viewport!=null?-2:-1);}
             RefreshPreview();ValidationMessage.Visibility=Visibility.Collapsed;
         }
         private readonly List<TextBox> layoutBoxes=new List<TextBox>();

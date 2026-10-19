@@ -39,6 +39,7 @@ public static class ScheduleFilterRegression
         var doc=new Document();var id=new ScheduleFieldId(3);var number=SpecTypeId.Number;
         var original=new ScheduleDefinition();original.Filters.Add(new ScheduleFilter(new ScheduleFieldId(1),ScheduleFilterType.Equal,"Пилон"));original.Filters.Add(new ScheduleFilter(new ScheduleFieldId(2),ScheduleFilterType.NotEqual,""));original.Filters.Add(new ScheduleFilter(id,ScheduleFilterType.Equal,"Пм-1"));
         var before=original.Filters.Select(ScheduleFilterTools.Signature).ToArray();
+        ScheduleFilterTools.Verify(original,before,-1,null);check(before.SequenceEqual(original.Filters.Select(ScheduleFilterTools.Signature)),"copy without filter replacement preserves every filter");
         var replacement=ScheduleFilterTools.BuildFilter(doc,id,number,"String",ScheduleFilterType.Equal,"Пм-13","S:Пм-13");original.SetFilter(2,replacement);ScheduleFilterTools.Verify(original,before,2,replacement);
         check(original.Filters.Count==3&&original.GetFilter(0).GetStringValue()=="Пилон"&&original.GetFilter(1).FilterType==ScheduleFilterType.NotEqual&&original.GetFilter(2).GetStringValue()=="Пм-13","only selected third schedule filter changed");
         original.SetFilter(0,new ScheduleFilter(new ScheduleFieldId(1),ScheduleFilterType.Equal,"unexpected"));check(Throws(()=>ScheduleFilterTools.Verify(original,before,2,replacement)),"unrequested filter change detected");

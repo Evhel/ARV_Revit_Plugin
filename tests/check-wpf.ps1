@@ -265,9 +265,15 @@ if($elementDialog.Rows[0].TemplateId -ne 4) {throw 'Saved reference must resolve
 $badPath=Join-Path $out 'element-views-settings-invalid.json';[IO.File]::WriteAllText($badPath,'not json')
 $badRejected=$false;try{$null=$settingsType.GetMethod('Load').Invoke($null,[object[]]@([string]$badPath))}catch{$badRejected=$true}
 if(-not $badRejected){throw 'Invalid settings file must be rejected'}
-$oldPrefix=$elementDialog.Rows[0].Prefix;$loaded.Rows[0].Template.Name='Missing template';$failed=$false
-try {$elementDialog.ApplySettings($loaded)}catch{$failed=$true}
-if(-not $failed -or $elementDialog.Rows[0].Prefix -cne $oldPrefix){throw 'Missing saved template must not partially overwrite the form'}
+$loaded.Rows[0].Template.Name='Missing template';$loaded.Rows[0].Prefix='Loaded despite missing template'
+$elementDialog.ApplySettings($loaded)
+if($elementDialog.Rows[0].TemplateId -ne -1 -or $elementDialog.Rows[0].Prefix -cne 'Loaded despite missing template' -or $elementDialog.Rows[3].TemplateId -ne $loaded.Rows[3].Template.Id){throw 'Missing template must stay empty while other settings load'}
+$loaded.Rows[0].Template.Name='КЖ_Разрезы 1:50';$loaded.Rows[0].Prefix='КЖ3_Арм_Пилон_';$elementDialog.ApplySettings($loaded)
+# Missing parameter, section type, titleblock and viewport must not block independent values.
+$partial=$elementDialog.CaptureSettings();$partial.Parameter.Name='Missing parameter';$partial.SectionType.Name='Missing section';$partial.TitleBlock.Name='Missing titleblock';$partial.Rows[0].Viewport.Name='Missing viewport';$partial.SheetPrefix='Partial sheet '
+$elementDialog.ApplySettings($partial)
+if($elementDialog.FindName('ParameterComboBox').SelectedItem -or $elementDialog.FindName('ParameterComboBox').Text -or $elementDialog.FindName('SectionTypeComboBox').SelectedItem -or $elementDialog.FindName('TitleBlockComboBox').SelectedItem -or $elementDialog.Rows[0].ViewportTypeId -ne -2 -or $elementDialog.FindName('SheetPrefixTextBox').Text -cne 'Partial sheet '){throw 'Project references must clear independently of valid settings'}
+$elementDialog.ApplySettings($loaded)
 $elementDialog.FindName('CreateSheetCheckBox').IsChecked=$true
 $layoutGrid.Children[0].Text='1';$layoutGrid.Children[1].Text='7';$layoutGrid.Children[2].Text='';$layoutGrid.Children[3].Text='4'
 $elementDialog.FindName('BodyScroll').ScrollToBottom()
@@ -302,9 +308,9 @@ $elementDialog.ScheduleRows[0].Filter=$scheduleInfo.Filters[2];$elementDialog.Sc
 # Change the actual ComboBox selection (model-only assignments missed the old reentrant reset).
 $filterControl=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[0] -and $_.GetBindingExpression([Windows.Controls.ItemsControl]::ItemsSourceProperty).ParentBinding.Path.Path -eq 'Filters'})[0]
 $conditionControl=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[0] -and $_.GetBindingExpression([Windows.Controls.ItemsControl]::ItemsSourceProperty).ParentBinding.Path.Path -eq 'Operators'})[0]
-foreach($index in @(0,1,2)){
+foreach($index in @(1,2,3)){
  $filterControl.SelectedIndex=$index
- if($elementDialog.ScheduleRows[0].Filter.Index -ne $index -or $conditionControl.Items.Count -ne 3 -or $conditionControl.SelectedValue -cne 'Equal'){throw 'Choosing a filter must populate and select its native condition without resetting the field'}
+ if($elementDialog.ScheduleRows[0].Filter.Index -ne ($index-1) -or $conditionControl.Items.Count -ne 3 -or $conditionControl.SelectedValue -cne 'Equal'){throw 'Choosing a filter must populate and select its native condition without resetting the field'}
  $conditionControl.SelectedValue='HasParameter'
  if($elementDialog.ScheduleRows[0].OperatorKey -cne 'HasParameter' -or $elementDialog.ScheduleRows[0].FilterValue -cne 'Не требуется'){throw 'Condition selector did not update schedule row'}
  $conditionControl.SelectedValue='Contains'
@@ -313,8 +319,11 @@ foreach($index in @(0,1,2)){
 # A fresh source starts with an explicit field choice; then conditions become available.
 $sourceCombo.Text='';$sourceCombo.SelectedItem=$scheduleInfo
 if($conditionControl.IsEnabled -or $conditionControl.Items.Count -ne 0){throw 'Condition must wait for a field choice'}
-$filterControl.SelectedIndex=2
+$filterControl.SelectedIndex=3
 if(-not $conditionControl.IsEnabled -or $conditionControl.SelectedValue -cne 'Equal'){throw 'Fresh source condition not populated'}
+$filterControl.SelectedIndex=0
+if($elementDialog.ScheduleRows[0].Filter.Index -ne -1 -or $conditionControl.IsEnabled -or $elementDialog.ScheduleRows[0].FilterValue -cne '—'){throw 'Keep filters must be selectable in actual dropdown and disable condition/value'}
+$filterControl.SelectedIndex=3
 $conditionControl.SelectedValue='Contains';$elementDialog.ScheduleRows[0].ViewParameter=$scheduleInfo.Parameters[1]
 # Last columns fill the available viewport and follow window resizing; small windows retain scrolling.
 foreach($tab in @($elementDialog.FindName('SchedulesTab'),$elementDialog.FindName('SettingsTabs').Items[0])){
@@ -328,8 +337,10 @@ foreach($tab in @($elementDialog.FindName('SchedulesTab'),$elementDialog.FindNam
   if(-not $last.Width.IsStar -or [Math]::Abs($last.ActualWidth-$expected) -gt 1){throw ('Last column does not fill '+$table.Name+' at width '+$width)}
  }
 }
+$elementDialog.ScheduleRows[2].Source=$thirdSchedule
 $elementDialog.FindName('SettingsTabs').SelectedItem=$elementDialog.FindName('SchedulesTab')
 foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-schedules-'+$dpi+'.png'))}
+$elementDialog.ScheduleRows[2].Source=$null
 if($elementDialog.FindName('SectionTypeComboBox').Width -ne 255){throw 'Section type selector must be 1.5 times wider'}
 $disabled=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[1] -and -not $_.IsEditable -and $_.IsEnabled})
 if($disabled.Count -ne 0){throw 'All fields after copy checkbox must be disabled for reused schedules'}
@@ -342,9 +353,27 @@ $elementDialog.ScheduleRows[0].Source=$null;$elementDialog.ApplySettings($roundT
 if($elementDialog.ScheduleRows[0].Source.Id -ne 1001 -or $elementDialog.ScheduleRows[0].Filter.Index -ne 2 -or $elementDialog.ScheduleRows[0].OperatorKey -cne 'Contains' -or $elementDialog.ScheduleRows[1].Copy){throw 'Schedule settings round-trip regression'}
 $roundTrip.Schedules[0].Source.Id=99999;$elementDialog.ApplySettings($roundTrip)
 if($elementDialog.ScheduleRows[0].Source.Id -ne 1001){throw 'Cross-project schedule source must resolve by name'}
-$roundTrip.Schedules[0].Source.Name='Missing schedule';$beforeName=$elementDialog.ScheduleRows[0].Source.Name;$badSaved=$false
-try{$elementDialog.ApplySettings($roundTrip)}catch{$badSaved=$true}
-if(-not $badSaved -or $elementDialog.ScheduleRows[0].Source.Name -cne $beforeName){throw 'Invalid saved schedule must not partly overwrite form'}
+$roundTrip.Schedules[0].Source.Name='Missing schedule';$roundTrip.SheetPrefix='Independent loaded prefix'
+$elementDialog.ApplySettings($roundTrip)
+if($elementDialog.ScheduleRows[0].Source -or $elementDialog.ScheduleRows[1].Source.Id -ne 1002 -or $elementDialog.FindName('SheetPrefixTextBox').Text -cne 'Independent loaded prefix' -or $elementDialog.FindName('ScheduleLayoutGrid').Children[1].Text -ne '' -or $elementDialog.FindName('ScheduleLayoutGrid').Children[3].Text -cne '2'){throw 'Missing schedule must clear only its row and schema cells'}
+$roundTrip.Schedules[0].Source.Name=$scheduleInfo.Name;$roundTrip.SheetPrefix='Элемент ';$elementDialog.ApplySettings($roundTrip)
+# Missing filter and writable view parameter clear independently; copy/source/name still restore.
+$partialSchedules=$elementDialog.CaptureSettings();$partialSchedules.Schedules[0].FilterName='Missing filter';$partialSchedules.Schedules[0].ViewParameter.Name='Missing schedule parameter'
+$elementDialog.ApplySettings($partialSchedules)
+if($elementDialog.ScheduleRows[0].Source.Id -ne 1001 -or -not $elementDialog.ScheduleRows[0].Copy -or $elementDialog.ScheduleRows[0].Filter -or $elementDialog.ScheduleRows[0].ViewParameter -or $elementDialog.ScheduleRows[1].Source.Id -ne 1002){throw 'Missing schedule filter/parameter must not block independent settings'}
+$blankFilter=$elementDialog.CaptureSettings();$elementDialog.ApplySettings($blankFilter)
+if($elementDialog.ScheduleRows[0].Filter){throw 'Unresolved filter must not silently become Keep filters after saving settings'}
+$elementDialog.ApplySettings($roundTrip)
+$partialCondition=$elementDialog.CaptureSettings();$partialCondition.Schedules[0].OperatorKey='UnsupportedCondition';$elementDialog.ApplySettings($partialCondition)
+if($elementDialog.ScheduleRows[0].Filter.Index -ne 2 -or $elementDialog.ScheduleRows[0].OperatorKey -or $elementDialog.ScheduleRows[0].ViewParameter.Id -ne 101){throw 'Missing filter condition must leave the condition blank and restore valid fields'}
+$elementDialog.ApplySettings($roundTrip)
+# Explicit copy without changing any filter, including settings persistence and mark parameter.
+$elementDialog.ScheduleRows[0].Filter=$elementDialog.ScheduleRows[0].KeepFilters
+$copyUnchanged=$elementDialog.BuildOptions()
+if(-not $copyUnchanged.Schedules[0].Copy -or $copyUnchanged.Schedules[0].FilterIndex -ne -1 -or $copyUnchanged.Schedules[0].OperatorKey -or $copyUnchanged.Schedules[0].ViewParameterId -ne 101 -or $elementDialog.ScheduleRows[0].CanEditFilter){throw 'Copy without filter editing must still allow mark parameter'}
+$keepSaved=$elementDialog.CaptureSettings();$elementDialog.ScheduleRows[0].Filter=$scheduleInfo.Filters[2];$elementDialog.ApplySettings($keepSaved)
+if($elementDialog.ScheduleRows[0].Filter.Index -ne -1 -or $elementDialog.ScheduleRows[0].CanEditFilter){throw 'Keep-filter option did not survive settings restore'}
+$elementDialog.ApplySettings($roundTrip)
 $elementDialog.ScheduleRows[0].OperatorKey='HasParameter'
 if($elementDialog.ScheduleRows[0].FilterValue -cne 'Не требуется'){throw 'Parameter-exists filter must not require a mark value'}
 $elementDialog.ScheduleRows[0].OperatorKey='Contains'

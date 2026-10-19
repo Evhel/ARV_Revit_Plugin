@@ -9,6 +9,7 @@
   <ItemGroup>
     <Reference Include="System"/><Reference Include="System.Core"/>
     <Compile Include="AlgorithmTests.cs"/>
+    <Compile Include="..\src\Common\SheetMargins.cs"><Link>Common\SheetMargins.cs</Link></Compile>
     <Compile Include="..\src\AreaReinforcementHosts\HostMatchingMath.cs"><Link>AreaHosts\HostMatchingMath.cs</Link></Compile>
     <Compile Include="AreaHostMathTests.cs"/>
     <Compile Include="ElementViewTests.cs"/>

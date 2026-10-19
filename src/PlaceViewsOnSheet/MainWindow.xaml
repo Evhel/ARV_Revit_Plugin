@@ -82,7 +82,7 @@
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="Начальная точка — 50 мм от левого и верхнего края листа. Шаг задаётся между точками размещения." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
+                        <TextBlock Text="Начальная точка — 50 мм от левой и верхней линии рамки (поля бумаги: слева 20 мм, остальные 5 мм). Шаг задаётся между точками размещения." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
                     </StackPanel>
                 </Border>
                 <TextBlock Text="Уже размещённые и неподходящие виды будут пропущены с объяснением в результате." Style="{StaticResource Arv.HelpText}" Margin="0,0,0,12"/>
