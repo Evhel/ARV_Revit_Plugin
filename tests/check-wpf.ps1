@@ -26,7 +26,7 @@ function Render-Content($window, $width, $height, $dpi, $path) {
     $content.Measure([Windows.Size]::new($width,$height))
     $content.Arrange([Windows.Rect]::new(0,0,$width,$height))
     $content.UpdateLayout()
-    $content.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    $content.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $content.Measure([Windows.Size]::new($width,$height))
     $content.Arrange([Windows.Rect]::new(0,0,$width,$height))
     $content.UpdateLayout()
@@ -299,6 +299,38 @@ $sourceCombo.Text='ведом'
 if(@($sourceCombo.ItemsSource).Count -ne 1 -or @($sourceCombo.ItemsSource)[0].Id -ne 1002){throw 'Typing must narrow dropdown by substring'}
 $sourceCombo.Text='';$sourceCombo.SelectedItem=$scheduleInfo
 $elementDialog.ScheduleRows[0].Filter=$scheduleInfo.Filters[2];$elementDialog.ScheduleRows[0].OperatorKey='Contains';$elementDialog.ScheduleRows[0].ViewParameter=$scheduleInfo.Parameters[1]
+# Change the actual ComboBox selection (model-only assignments missed the old reentrant reset).
+$filterControl=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[0] -and $_.GetBindingExpression([Windows.Controls.ItemsControl]::ItemsSourceProperty).ParentBinding.Path.Path -eq 'Filters'})[0]
+$conditionControl=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[0] -and $_.GetBindingExpression([Windows.Controls.ItemsControl]::ItemsSourceProperty).ParentBinding.Path.Path -eq 'Operators'})[0]
+foreach($index in @(0,1,2)){
+ $filterControl.SelectedIndex=$index
+ if($elementDialog.ScheduleRows[0].Filter.Index -ne $index -or $conditionControl.Items.Count -ne 3 -or $conditionControl.SelectedValue -cne 'Equal'){throw 'Choosing a filter must populate and select its native condition without resetting the field'}
+ $conditionControl.SelectedValue='HasParameter'
+ if($elementDialog.ScheduleRows[0].OperatorKey -cne 'HasParameter' -or $elementDialog.ScheduleRows[0].FilterValue -cne 'Не требуется'){throw 'Condition selector did not update schedule row'}
+ $conditionControl.SelectedValue='Contains'
+ if($elementDialog.ScheduleRows[0].OperatorKey -cne 'Contains'){throw 'Condition selector lost chosen value'}
+}
+# A fresh source starts with an explicit field choice; then conditions become available.
+$sourceCombo.Text='';$sourceCombo.SelectedItem=$scheduleInfo
+if($conditionControl.IsEnabled -or $conditionControl.Items.Count -ne 0){throw 'Condition must wait for a field choice'}
+$filterControl.SelectedIndex=2
+if(-not $conditionControl.IsEnabled -or $conditionControl.SelectedValue -cne 'Equal'){throw 'Fresh source condition not populated'}
+$conditionControl.SelectedValue='Contains';$elementDialog.ScheduleRows[0].ViewParameter=$scheduleInfo.Parameters[1]
+# Last columns fill the available viewport and follow window resizing; small windows retain scrolling.
+foreach($tab in @($elementDialog.FindName('SchedulesTab'),$elementDialog.FindName('SettingsTabs').Items[0])){
+ $elementDialog.FindName('SettingsTabs').SelectedItem=$tab
+ foreach($width in @(1180,1500,1000,1180)){
+  Render-Content $elementDialog $width 670 96 (Join-Path $out 'element-column-sizing.png')
+  $table=if($tab.Header -eq 'Спецификации'){$elementDialog.FindName('SchedulesGrid')}else{$elementDialog.FindName('ViewsGrid')}
+  $fixed=($table.Columns | Select-Object -SkipLast 1 | Measure-Object ActualWidth -Sum).Sum
+  $last=$table.Columns[$table.Columns.Count-1]
+  $expected=[Math]::Max($last.MinWidth,$table.ActualWidth-2-$fixed)
+  if(-not $last.Width.IsStar -or [Math]::Abs($last.ActualWidth-$expected) -gt 1){throw ('Last column does not fill '+$table.Name+' at width '+$width)}
+ }
+}
+$elementDialog.FindName('SettingsTabs').SelectedItem=$elementDialog.FindName('SchedulesTab')
+foreach($dpi in @(96,120,144,192)){Render-Content $elementDialog 1180 670 $dpi (Join-Path $out ('ElementViews-schedules-'+$dpi+'.png'))}
+if($elementDialog.FindName('SectionTypeComboBox').Width -ne 255){throw 'Section type selector must be 1.5 times wider'}
 $disabled=@($scheduleCombos | Where-Object {$_.DataContext -eq $elementDialog.ScheduleRows[1] -and -not $_.IsEditable -and $_.IsEnabled})
 if($disabled.Count -ne 0){throw 'All fields after copy checkbox must be disabled for reused schedules'}
 $scheduleSaved=$elementDialog.CaptureSettings()
