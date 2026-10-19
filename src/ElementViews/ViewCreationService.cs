@@ -84,7 +84,7 @@ namespace ARV.ElementViews
                                         sheet=ViewSheet.Create(doc,symbol.Id);doc.Regenerate();
                                         var blocks=new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_TitleBlocks)
                                             .WhereElementIsNotElementType().Where(e=>e.OwnerViewId==sheet.Id).ToList();
-                                        SheetFormatParameters.Apply(blocks,options.FormatA,options.FormatX);
+                                        SheetFormatParameters.Apply(blocks,options.FormatA,options.FormatX,()=>doc.Regenerate());
                                         doc.Regenerate();
                                         sheet.Name=ElementViewMath.Name(options.SheetPrefix,token,options.SheetSuffix);
                                         int number=1;
