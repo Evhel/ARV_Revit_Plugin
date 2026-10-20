@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
+using static Arv.OriginRelocator.RelocationProgress;
 
 namespace Arv.OriginRelocator
 {
@@ -16,108 +17,123 @@ namespace Arv.OriginRelocator
             if (Math.Abs(delta.Z) > 1e-12) throw new ArgumentException("Перенос по высоте отключён.");
             report.Lines.Add(string.Format(CultureInfo.InvariantCulture,
                 "Вектор в мм: {0:R}; {1:R}; {2:R}", delta.X * 304.8, delta.Y * 304.8, delta.Z * 304.8));
+            Check(report, null, "Сведения о листах", () => report.CaptureContexts(doc, plan));
             using (TransactionGroup group = new TransactionGroup(doc, "ARV — модель в начало координат"))
             {
                 if (group.Start() != TransactionStatus.Started) throw new InvalidOperationException("Не удалось начать операцию.");
                 try
                 {
-                    RunTransaction(doc, "Перенос модели", report, plan, () =>
+                    bool modelKept = RunTransaction(doc, "Перенос модели", report, plan, () =>
                     {
                         foreach (KeyValuePair<int, bool> pin in plan.Pins.Where(x => x.Value))
-                            if (!plan.Ancestors(pin.Key).Any(id => doc.GetElement(new ElementId(id)) is Group))
-                                doc.GetElement(new ElementId(pin.Key)).Pinned = false;
-                        Move(doc, plan.ModelRoots, delta, "Модель", report);
+                            TryElement(doc, report, new ElementId(pin.Key), "Снятие закрепления", () =>
+                            { if (!plan.Ancestors(pin.Key).Any(id => doc.GetElement(new ElementId(id)) is Group)) doc.GetElement(new ElementId(pin.Key)).Pinned = false; });
+                        MoveBestEffort(doc, plan.ModelRoots, delta, "Модель", report);
                         doc.Regenerate();
                         // Work-plane-based instances can inherit only the normal component from the moved plane.
                         // Move only the remaining displacement; keep their original host.
-                        foreach (ElementState s in plan.Models.OrderBy(x => plan.Ancestors(x.Id.IntegerValue).Count()))
-                        {
-                            XYZ residual = s.Residual(doc, delta, false);
-                            if (residual.GetLength() <= Tolerance) continue;
-                            FamilyInstance family = doc.GetElement(s.Id) as FamilyInstance;
-                            if (family != null && family.SuperComponent == null &&
-                                family.GroupId == ElementId.InvalidElementId && !plan.ModelRoots.Contains(s.Id))
-                            {
-                                Move(doc, new[] { s.Id }, residual, "Остаток переноса элемента на основе", report);
-                                doc.Regenerate();
-                            }
-                        }
-                        foreach (ElementState s in plan.Models) s.Verify(doc, delta);
-                        VerifyStationary(doc, plan);
+                        CorrectModelRemainders(doc, plan, delta, report);
+                        foreach (ElementState s in plan.Models) Check(report, s.Id, "Проверка модели", () => s.Verify(doc, delta));
+                        VerifyStationary(doc, plan, report);
 #if SECTION_PROBE
                         SectionProbeTrace.Record(doc, plan, delta, report, "AFTER_MODEL");
 #endif
                     });
 
+                    if (!modelKept)
+                    {
+                        foreach (var root in plan.ModelRoots.ToList())
+                            RunTransaction(doc, "Перенос модели / " + root.IntegerValue, report, plan, () =>
+                            {
+                                foreach (var pin in plan.Pins.Where(p => p.Value && (p.Key == root.IntegerValue || plan.Ancestors(p.Key).Contains(root.IntegerValue))))
+                                    TryElement(doc, report, new ElementId(pin.Key), "Снятие закрепления", () =>
+                                    { if (!plan.Ancestors(pin.Key).Any(id => doc.GetElement(new ElementId(id)) is Group)) doc.GetElement(new ElementId(pin.Key)).Pinned = false; });
+                                Move(doc, new[] {root}, delta, "Модель", report);
+                                doc.Regenerate();
+                            });
+
+                        RunTransaction(doc, "Остатки переноса модели", report, plan, () => CorrectModelRemainders(doc, plan, delta, report));
+                    }
+
                     RunTransaction(doc, "Перенос видов и областей обрезки", report, plan, () =>
                     {
-                        
+
                         foreach (ElementId id in plan.ElevationMarkers)
                         {
-
-                            // Markers are not model roots; move only if a model parent has not moved them.
-                            // An explicit before snapshot is supplied by the plan.
-                            ElementState original;
-                            if (plan.MarkerStates.TryGetValue(id.IntegerValue, out original))
+                            TryElement(doc, report, id, "Обозначение фасада", () =>
                             {
-                                XYZ residual = original.Residual(doc, delta, false);
-                                if (residual.GetLength() > Tolerance) Move(doc, new[] { id }, residual, "Обозначение фасада", report);
-                            }
+
+                                // Markers are not model roots; move only if a model parent has not moved them.
+                                // An explicit before snapshot is supplied by the plan.
+                                ElementState original;
+                                if (plan.MarkerStates.TryGetValue(id.IntegerValue, out original))
+                                {
+                                    XYZ residual = original.Residual(doc, delta, false);
+                                    if (residual.GetLength() > Tolerance) Move(doc, new[] { id }, residual, "Обозначение фасада", report);
+                                }
+
+                            });
                         }
                         doc.Regenerate();
                         foreach (ViewState state in OrderViewsForRelocation(doc, plan.Views))
                         {
-                            View view = doc.GetElement(state.Id) as View;
-                            ViewSection section = view as ViewSection;
-                            XYZ residual = state.Center + delta - ViewState.GetCenter(view);
-                            double normalError = (state.Origin + delta - view.Origin).DotProduct(state.Direction);
-                            if (section != null && (Math.Abs(normalError) > Tolerance ||
-                                (plan.SectionViewElements.ContainsKey(view.Id.IntegerValue) && new XYZ(residual.X, residual.Y, 0).GetLength() > Tolerance)))
+                            TryElement(doc, report, state.Id, "Перенос вида", () =>
                             {
-                                ElementId viewElementId;
-                                if (!plan.SectionViewElements.TryGetValue(view.Id.IntegerValue, out viewElementId))
+                                View view = doc.GetElement(state.Id) as View;
+                                ViewSection section = view as ViewSection;
+                                XYZ residual = state.Center + delta - ViewState.GetCenter(view);
+                                double normalError = (state.Origin + delta - view.Origin).DotProduct(state.Direction);
+                                if (section != null && (Math.Abs(normalError) > Tolerance ||
+                                    (plan.SectionViewElements.ContainsKey(view.Id.IntegerValue) && new XYZ(residual.X, residual.Y, 0).GetLength() > Tolerance)))
                                 {
-                                    ElementId primary = view.GetPrimaryViewId();
-                                    if (primary == ElementId.InvalidElementId ||
-                                        !plan.SectionViewElements.TryGetValue(primary.IntegerValue, out viewElementId))
-                                        throw new InvalidOperationException("Не найдено однозначное обозначение вида: " + view.Name +
-                                            " (" + view.Id.IntegerValue + "). Подробности в отчёте.");
+                                    ElementId viewElementId;
+                                    if (!plan.SectionViewElements.TryGetValue(view.Id.IntegerValue, out viewElementId))
+                                    {
+                                        ElementId primary = view.GetPrimaryViewId();
+                                        if (primary == ElementId.InvalidElementId ||
+                                            !plan.SectionViewElements.TryGetValue(primary.IntegerValue, out viewElementId))
+                                            throw new InvalidOperationException("Не найдено однозначное обозначение вида: " + view.Name +
+                                                " (" + view.Id.IntegerValue + "). Подробности в отчёте.");
+                                    }
+                                    // Translate the entire section marker, including its manually adjusted line extents.
+                                    // Dependent views without their own marker inherit only the parent's plane correction.
+                                    XYZ planeMove = SectionMarkerTranslation(residual, state.Direction, normalError,
+                                        plan.SectionViewElements.ContainsKey(view.Id.IntegerValue));
+                                    Move(doc, new[] { viewElementId }, planeMove, "Плоскость вида " + view.Name, report);
+                                    doc.Regenerate();
+#if SECTION_PROBE
+                                    SectionProbeTrace.Record(doc, plan, delta, report, "AFTER_SECTION_MARKER " + view.Id.IntegerValue, view.Id.IntegerValue);
+#endif
+                                    normalError = (state.Origin + delta - view.Origin).DotProduct(state.Direction);
+                                    if (Math.Abs(normalError) > Tolerance)
+                                        report.AddIssue(state.Id, "Плоскость вида", "Расхождение " + (normalError * 304.8).ToString("F3") + " мм; обозначение " + viewElementId.IntegerValue);
+                                    residual = state.Center + delta - ViewState.GetCenter(view);
                                 }
-                                // Translate the entire section marker, including its manually adjusted line extents.
-                                // Dependent views without their own marker inherit only the parent's plane correction.
-                                XYZ planeMove = SectionMarkerTranslation(residual, state.Direction, normalError,
-                                    plan.SectionViewElements.ContainsKey(view.Id.IntegerValue));
-                                Move(doc, new[] { viewElementId }, planeMove, "Плоскость вида " + view.Name, report);
-                                doc.Regenerate();
+                                XYZ inPlane = ElementState.Project(residual, view.ViewDirection);
+                                if (inPlane.GetLength() > Tolerance)
+                                {
+                                    TranslateCrop(view, inPlane);
+                                    doc.Regenerate();
+                                }
 #if SECTION_PROBE
-                                SectionProbeTrace.Record(doc, plan, delta, report, "AFTER_SECTION_MARKER " + view.Id.IntegerValue, view.Id.IntegerValue);
+                                SectionProbeTrace.Record(doc, plan, delta, report, "AFTER_VIEW " + view.Id.IntegerValue, view.Id.IntegerValue);
 #endif
-                                normalError = (state.Origin + delta - view.Origin).DotProduct(state.Direction);
-                                if (Math.Abs(normalError) > Tolerance)
-                                    throw new InvalidOperationException("Не переместилась плоскость вида: " + view.Name +
-                                        "; обозначение " + viewElementId.IntegerValue +
-                                        "; расхождение " + (normalError * 304.8).ToString("F3") + " мм.");
-                                residual = state.Center + delta - ViewState.GetCenter(view);
-                            }
-                            XYZ inPlane = ElementState.Project(residual, view.ViewDirection);
-                            if (inPlane.GetLength() > Tolerance)
-                            {
-                                TranslateCrop(view, inPlane);
-                                doc.Regenerate();
-                            }
-#if SECTION_PROBE
-                            SectionProbeTrace.Record(doc, plan, delta, report, "AFTER_VIEW " + view.Id.IntegerValue, view.Id.IntegerValue);
-#endif
-                            VerifyView(view, state, delta);
+                                Check(report, state.Id, "Проверка вида", () => VerifyView(view, state, delta));
+
+                            });
                         }
                         foreach (ElementId id in plan.SectionBoxes)
                         {
-                            View3D view = (View3D)doc.GetElement(id);
-                            BoundingBoxXYZ old = plan.BoxesBefore[id.IntegerValue];
-                            BoundingBoxXYZ box = new BoundingBoxXYZ();
-                            box.Min = old.Min; box.Max = old.Max;
-                            box.Transform = Transform.CreateTranslation(delta).Multiply(old.Transform);
-                            view.SetSectionBox(box);
+                            TryElement(doc, report, id, "Секущая рамка 3D", () =>
+                            {
+                                View3D view = (View3D)doc.GetElement(id);
+                                BoundingBoxXYZ old = plan.BoxesBefore[id.IntegerValue];
+                                BoundingBoxXYZ box = new BoundingBoxXYZ();
+                                box.Min = old.Min; box.Max = old.Max;
+                                box.Transform = Transform.CreateTranslation(delta).Multiply(old.Transform);
+                                view.SetSectionBox(box);
+
+                            });
                         }
                         doc.Regenerate();
                     });
@@ -126,77 +142,90 @@ namespace Arv.OriginRelocator
                     {
                         foreach (ViewGraphicState graphic in plan.ViewGraphics.Where(g => g.IsReference))
                         {
-                            View owner = (View)doc.GetElement(graphic.State.ViewId);
-                            XYZ remaining = graphic.Residual(doc, delta);
-                            if (remaining.GetLength() > Tolerance)
+                            TryElement(doc, report, graphic.State.Id, "Опорное обозначение вида", () =>
                             {
-                                Move(doc, new[] { graphic.State.Id }, remaining, "Опорное обозначение вида", report, owner, true);
-                                doc.Regenerate();
-                            }
-                            graphic.Verify(doc, delta);
+                                View owner = (View)doc.GetElement(graphic.State.ViewId);
+                                XYZ remaining = graphic.Residual(doc, delta);
+                                if (remaining.GetLength() > Tolerance)
+                                {
+                                    Move(doc, new[] { graphic.State.Id }, remaining, "Опорное обозначение вида", report, owner, true);
+                                    doc.Regenerate();
+                                }
+                                Check(report, graphic.State.Id, "Проверка обозначения", () => graphic.Verify(doc, delta));
+
+                            });
                         }
                         HashSet<int> annotationIds = new HashSet<int>(plan.Annotations.Select(s => s.Id.IntegerValue));
                         List<ElementState> roots = plan.Annotations
                             .Where(s => !plan.Ancestors(s.Id.IntegerValue).Any(id =>
                                 annotationIds.Contains(id) || plan.Models.Any(m => m.Id.IntegerValue == id)))
                             .OrderBy(s => doc.GetElement(s.Id) is Dimension ? 1 : 0).ToList();
-                        foreach (ElementState root in roots)
+                        roots = roots.Where(root => Check(report, root.Id, "Корни оформления", () =>
                         {
                             Element e = doc.GetElement(root.Id);
                             Group parent = doc.GetElement(e.GroupId) as Group;
                             if (RelocationPlan.IsDetailGroup(parent))
                                 throw new InvalidOperationException("Нельзя перемещать член группы оформления отдельно: " +
                                     RelocationReport.Describe(e) + "; группа " + parent.Id.IntegerValue);
-                        }
+
+                        })).ToList();
                         // Group by view and residual to preserve constraints during the move.
                         foreach (IGrouping<int, ElementState> viewGroup in roots.GroupBy(s => s.ViewId.IntegerValue))
                         {
-                            List<ElementState> pending = viewGroup.ToList();
+                            var pending = viewGroup.ToList();
                             while (pending.Count > 0)
                             {
-                                ElementState first = pending[0];
-                                XYZ residual = first.Residual(doc, delta, true);
-                                List<ElementState> same = pending.Where(s =>
-                                    (s.Residual(doc, delta, true) - residual).GetLength() <= Tolerance).ToList();
-                                if (residual.GetLength() > Tolerance)
+                                var first = pending[0]; XYZ residual = null;
+                                if (!Check(report, first.Id, "Остаток оформления", () => residual = first.Residual(doc, delta, true))) { pending.RemoveAt(0); continue; }
+                                var same = new List<ElementState>();
+                                foreach (var state in pending.ToList())
                                 {
-                                    View ownerView = (View)doc.GetElement(first.ViewId);
-                                    List<ElementId> moveIds = CollectAnnotationMoveRoots(doc,
-                                        same.Select(s => s.Id).ToList(), plan.OriginalIds);
-                                    Move(doc, moveIds, residual,
-                                        "Оформление вида " + ownerView.Name, report, ownerView);
-                                    doc.Regenerate();
-                                    HashSet<int> movedRoots = new HashSet<int>(moveIds.Select(id => id.IntegerValue));
-                                    // The group moves atomically. Its graphic members are still verified individually.
-                                    foreach (ElementState state in plan.Annotations.Where(state =>
-                                        movedRoots.Contains(state.Id.IntegerValue) ||
-                                        plan.Ancestors(state.Id.IntegerValue).Any(movedRoots.Contains)))
-                                        state.Verify(doc, delta, true, false);
+                                    XYZ candidate = null;
+                                    if (!Check(report, state.Id, "Остаток оформления", () => candidate = state.Residual(doc, delta, true))) { pending.Remove(state); continue; }
+                                    if ((candidate - residual).GetLength() <= Tolerance) same.Add(state);
                                 }
-                                foreach (ElementState s in same) pending.Remove(s);
+                                if (residual.GetLength() > Tolerance && same.Count > 0)
+                                {
+                                    TryElement(doc, report, first.ViewId, "Оформление вида", () =>
+                                    {
+                                        var ownerView = (View)doc.GetElement(first.ViewId);
+                                        var moveIds = CollectAnnotationMoveRoots(doc, same.Select(state => state.Id).ToList(), plan.OriginalIds);
+                                        MoveBestEffort(doc, moveIds, residual, "Оформление вида " + ownerView.Name, report, ownerView);
+                                        doc.Regenerate();
+                                    });
+                                }
+                                foreach (var state in same) pending.Remove(state);
                             }
                         }
                         report.Lines.Add("ВОССТАНОВЛЕНИЕ ПОЛОЖЕНИЯ ТЕКСТОВ И ВЫНОСОК");
                         foreach (ElementState s in plan.Annotations)
                         {
-                            // Do not directly edit group members. Validate that the group brought them along.
-                            if (!plan.Ancestors(s.Id.IntegerValue).Any(annotationIds.Contains))
-                                s.RestoreHandles(doc, delta);
+                            TryElement(doc, report, s.Id, "Тексты и выноски", () =>
+                            {
+                                // Do not directly edit group members. Validate that the group brought them along.
+                                if (!plan.Ancestors(s.Id.IntegerValue).Any(annotationIds.Contains))
+                                    s.RestoreHandles(doc, delta);
+
+                            });
                         }
                         doc.Regenerate();
 #if SECTION_PROBE
                         SectionProbeTrace.Record(doc, plan, delta, report, "BEFORE_FINAL_GRAPHICS_CHECK");
 #endif
                         report.Lines.Add("ИТОГОВАЯ ПРОВЕРКА ГЕОМЕТРИИ, ТЕКСТОВ И ВЫНОСОК");
-                        foreach (ElementState s in plan.Annotations) s.Verify(doc, delta, true);
-                        foreach (ViewGraphicState graphic in plan.ViewGraphics) graphic.Verify(doc, delta);
+                        foreach (ElementState s in plan.Annotations) Check(report, s.Id, "Проверка оформления", () => s.Verify(doc, delta, true));
+                        foreach (ViewGraphicState graphic in plan.ViewGraphics) Check(report, graphic.State.Id, "Проверка обозначения", () => graphic.Verify(doc, delta));
 
 
                         foreach (KeyValuePair<int, bool> pin in plan.Pins)
                         {
-                            Element e = doc.GetElement(new ElementId(pin.Key));
-                            if (e == null) throw new InvalidOperationException("Исчез закреплённый элемент " + pin.Key);
-                            if (!plan.ViewportCenters.ContainsKey(pin.Key) && e.Pinned != pin.Value) e.Pinned = pin.Value;
+                            TryElement(doc, report, new ElementId(pin.Key), "Восстановление закрепления", () =>
+                            {
+                                Element e = doc.GetElement(new ElementId(pin.Key));
+                                if (e == null) throw new InvalidOperationException("Исчез закреплённый элемент " + pin.Key);
+                                if (!plan.ViewportCenters.ContainsKey(pin.Key) && e.Pinned != pin.Value) e.Pinned = pin.Value;
+
+                            });
                         }
                         doc.Regenerate();
                         VerifyAll(doc, plan, delta, report, false);
@@ -209,20 +238,46 @@ namespace Arv.OriginRelocator
                         VerifyAll(doc, plan, delta, report);
                     });
 
-                    // Commit-time regeneration and failure resolution must also pass validation.
+                    // Report post-commit discrepancies without undoing completed stages.
                     VerifyAll(doc, plan, delta, report);
-                    if (group.Assimilate() != TransactionStatus.Committed)
-                        throw new InvalidOperationException("Revit не завершил операцию.");
-                    report.Lines.Add("УСПЕХ: проверены модель, виды, оформление, закрепление, связи и сохранность элементов. Удалено некорректных размеров: " + report.DeletedInvalidDimensions.Count + ".");
+                    report.KeptChanges = group.Assimilate() == TransactionStatus.Committed && report.CommittedStages.Count > 0;
+                    if (!report.KeptChanges) report.AddIssue(null, "Сохранение операции", "Revit не сохранил группу переноса.");
+                    report.Lines.Add("ЗАВЕРШЕНО: сохранено этапов " + report.CommittedStages.Count + "; замечаний " + report.Issues.Count + "; удалено некорректных размеров " + report.DeletedInvalidDimensions.Count);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    if (group.GetStatus() == TransactionStatus.Started) group.RollBack();
-                    report.InvalidDimensionDeletionRequests.Clear();
-                    report.DeletedInvalidDimensions.Clear();
-                    report.Lines.Add("ОТКАТ: изменения операции, включая удаление некорректных размеров, отменены.");
-                    throw;
+                    report.AddIssue(null, ex is Autodesk.Revit.Exceptions.OperationCanceledException ? "Остановлено пользователем" : "Завершение переноса", ex.Message);
+                    if (group.GetStatus() == TransactionStatus.Started)
+                    {
+                        try { report.KeptChanges = group.Assimilate() == TransactionStatus.Committed && report.CommittedStages.Count > 0; }
+                        catch (Exception saveError) { report.AddIssue(null, "Сохранение выполненного", saveError.Message); }
+                    }
                 }
+                if (!report.KeptChanges)
+                {
+                    report.CommittedStages.Clear(); report.InvalidDimensionDeletionRequests.Clear(); report.DeletedInvalidDimensions.Clear();
+                    report.Lines.Add("Revit не позволил сохранить изменения этой операции.");
+                }
+            }
+        }
+
+        private static void CorrectModelRemainders(Document doc, RelocationPlan plan, XYZ delta, RelocationReport report)
+        {
+            foreach (ElementState s in plan.Models.OrderBy(x => plan.Ancestors(x.Id.IntegerValue).Count()))
+                        {
+                TryElement(doc, report, s.Id, "Остаток переноса модели", () =>
+                {
+                    XYZ residual = s.Residual(doc, delta, false);
+                    if (residual.GetLength() <= Tolerance) return;
+                    FamilyInstance family = doc.GetElement(s.Id) as FamilyInstance;
+                    if (family != null && family.SuperComponent == null &&
+                        family.GroupId == ElementId.InvalidElementId && !plan.ModelRoots.Contains(s.Id))
+                    {
+                        Move(doc, new[] { s.Id }, residual, "Остаток переноса элемента на основе", report);
+                        doc.Regenerate();
+                    }
+
+                });
             }
         }
 
@@ -279,47 +334,70 @@ namespace Arv.OriginRelocator
                 int moved = 0;
                 foreach (KeyValuePair<int, XYZ> item in plan.ViewportCenters)
                 {
-                    Viewport viewport = doc.GetElement(new ElementId(item.Key)) as Viewport;
-                    if (viewport == null) throw new InvalidOperationException("Исчез вид на листе: " + item.Key);
-                    if (SheetOffset(viewport.GetBoxCenter(), item.Value).GetLength() <= Tolerance) continue;
-                    if (viewport.Pinned)
+                    TryElement(doc, report, new ElementId(item.Key), "Позиция вида на листе", () =>
                     {
-                        viewport.Pinned = false;
+                        Viewport viewport = doc.GetElement(new ElementId(item.Key)) as Viewport;
+                        if (viewport == null) throw new InvalidOperationException("Исчез вид на листе: " + item.Key);
+                        if (SheetOffset(viewport.GetBoxCenter(), item.Value).GetLength() <= Tolerance) return;
+                        if (viewport.Pinned)
+                        {
+                            viewport.Pinned = false;
+                            doc.Regenerate();
+                        }
+                        XYZ before = viewport.GetBoxCenter();
+                        viewport.SetBoxCenter(new XYZ(item.Value.X, item.Value.Y, before.Z));
                         doc.Regenerate();
-                    }
-                    XYZ before = viewport.GetBoxCenter();
-                    viewport.SetBoxCenter(new XYZ(item.Value.X, item.Value.Y, before.Z));
-                    doc.Regenerate();
-                    ++moved;
-                    report.Lines.Add(string.Format(CultureInfo.InvariantCulture,
-                        "ПОЗИЦИЯ НА ЛИСТЕ: {0}; вид {1}; лист {2}; проход {3}; коррекция X {4:R}, Y {5:R} мм; остаток {6:R} мм",
-                        item.Key, viewport.ViewId.IntegerValue, viewport.SheetId.IntegerValue, pass,
-                        (item.Value.X - before.X) * 304.8, (item.Value.Y - before.Y) * 304.8,
-                        SheetOffset(viewport.GetBoxCenter(), item.Value).GetLength() * 304.8));
+                        ++moved;
+                        report.Lines.Add(string.Format(CultureInfo.InvariantCulture,
+                            "ПОЗИЦИЯ НА ЛИСТЕ: {0}; вид {1}; лист {2}; проход {3}; коррекция X {4:R}, Y {5:R} мм; остаток {6:R} мм",
+                            item.Key, viewport.ViewId.IntegerValue, report.SheetNumber(viewport.SheetId), pass,
+                            (item.Value.X - before.X) * 304.8, (item.Value.Y - before.Y) * 304.8,
+                            SheetOffset(viewport.GetBoxCenter(), item.Value).GetLength() * 304.8));
+
+                    });
                 }
                 foreach (ViewportLabelState label in plan.ViewportLabels.Values)
                 {
-                    Viewport viewport = (Viewport)doc.GetElement(label.Id);
-                    if (label.Matches(viewport)) continue;
-                    if (viewport.Pinned) { viewport.Pinned = false; doc.Regenerate(); }
-                    label.Restore(doc, viewport);
-                    report.Lines.Add("ЗАГОЛОВОК НА ЛИСТЕ: " + label.Id.IntegerValue + "; проход " + pass);
+                    TryElement(doc, report, label.Id, "Заголовок на листе", () =>
+                    {
+                        Viewport viewport = (Viewport)doc.GetElement(label.Id);
+                        if (label.Matches(viewport)) return;
+                        if (viewport.Pinned) { viewport.Pinned = false; doc.Regenerate(); }
+                        label.Restore(doc, viewport);
+                        report.Lines.Add("ЗАГОЛОВОК НА ЛИСТЕ: " + label.Id.IntegerValue + "; проход " + pass);
+
+                    });
                 }
                 foreach (int id in plan.ViewportCenters.Keys)
                 {
-                    Viewport viewport = (Viewport)doc.GetElement(new ElementId(id));
-                    bool pinned = plan.Pins[id];
-                    if (viewport.Pinned != pinned) viewport.Pinned = pinned;
+                    TryElement(doc, report, new ElementId(id), "Закрепление вида на листе", () =>
+                    {
+                        Viewport viewport = (Viewport)doc.GetElement(new ElementId(id));
+                        bool pinned = plan.Pins[id];
+                        if (viewport.Pinned != pinned) viewport.Pinned = pinned;
+
+                    });
                 }
                 doc.Regenerate();
-                bool stable = plan.ViewportCenters.All(item =>
+                bool stable = false;
+                Check(report, null, "Стабильность компоновки листов", () => stable = plan.ViewportCenters.All(item =>
                     SheetOffset(((Viewport)doc.GetElement(new ElementId(item.Key))).GetBoxCenter(), item.Value).GetLength() <= Tolerance) &&
-                    plan.ViewportLabels.Values.All(label => label.Matches((Viewport)doc.GetElement(label.Id)));
+                    plan.ViewportLabels.Values.All(label => label.Matches((Viewport)doc.GetElement(label.Id))));
                 report.Lines.Add("ВИДЫ НА ЛИСТАХ: проход " + pass + "; исправлено " + moved + "; позиции подтверждены " + stable);
                 if (stable) return;
             }
-            // Never accept a changed sheet position after the bounded restoration passes.
-            VerifyViewportPositions(doc, plan);
+            // Report remaining sheet discrepancies after the bounded restoration passes.
+            VerifySheetViewports(doc, plan, report);
+        }
+
+        private static void VerifySheetViewports(Document doc, RelocationPlan plan, RelocationReport report)
+        {
+            foreach (var item in plan.ViewportCenters)
+                Check(report, new ElementId(item.Key), "Проверка позиции на листе", () =>
+                {
+                    var one = new RelocationPlan(); one.ViewportCenters.Add(item.Key, item.Value);
+                    VerifyViewportPositions(doc, one);
+                });
         }
 
         internal static void VerifyViewportPositions(Document doc, RelocationPlan plan)
@@ -331,8 +409,8 @@ namespace Arv.OriginRelocator
                 XYZ error = SheetOffset(viewport.GetBoxCenter(), item.Value);
                 if (error.GetLength() > Tolerance)
                     throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture,
-                        "Сместился вид на листе: {0}; вид {1}; лист {2}; X {3:F3}, Y {4:F3} мм; расхождение XY {5:F3} мм.",
-                        item.Key, viewport.ViewId.IntegerValue, viewport.SheetId.IntegerValue,
+                        "Сместился вид на листе: {0}; вид {1}; X {2:F3}, Y {3:F3} мм; расхождение XY {4:F3} мм.",
+                        item.Key, viewport.ViewId.IntegerValue,
                         error.X * 304.8, error.Y * 304.8, error.GetLength() * 304.8));
             }
         }
@@ -395,26 +473,34 @@ namespace Arv.OriginRelocator
             if (view.CropBoxActive != before.Active)
                 throw new InvalidOperationException("Изменилось состояние обрезки вида: " + view.Name);
         }
-        private static void VerifyStationary(Document doc, RelocationPlan plan)
+        private static void VerifyStationary(Document doc, RelocationPlan plan, RelocationReport report)
         {
             foreach (KeyValuePair<int, double> item in plan.LevelElevations)
             {
-                Level level = doc.GetElement(new ElementId(item.Key)) as Level;
-                if (level == null || Math.Abs(level.ProjectElevation - item.Value) > 1e-9 ||
-                    level.Pinned != plan.LevelPins[item.Key])
-                    throw new InvalidOperationException("Изменился уровень " + item.Key + ". Перенос отменяется.");
+                Check(report, new ElementId(item.Key), "Проверка уровня", () =>
+                {
+                    Level level = doc.GetElement(new ElementId(item.Key)) as Level;
+                    if (level == null || Math.Abs(level.ProjectElevation - item.Value) > 1e-9 ||
+                        level.Pinned != plan.LevelPins[item.Key])
+                        throw new InvalidOperationException("Изменился уровень " + item.Key + ". Требуется проверка.");
+
+                });
             }
-            foreach (ElementState s in plan.Stationary) s.Verify(doc, XYZ.Zero);
+            foreach (ElementState s in plan.Stationary) Check(report, s.Id, "Неподвижный элемент", () => s.Verify(doc, XYZ.Zero));
             foreach (KeyValuePair<int, Transform> item in plan.LinkTransforms)
             {
-                Element e = doc.GetElement(new ElementId(item.Key));
-                Transform now = e is RevitLinkInstance ? ((RevitLinkInstance)e).GetTransform() : ((ImportInstance)e).GetTransform();
-                Transform old = item.Value;
-                if ((now.Origin - old.Origin).GetLength() > Tolerance ||
-                    (now.BasisX - old.BasisX).GetLength() > 1e-9 ||
-                    (now.BasisY - old.BasisY).GetLength() > 1e-9 ||
-                    (now.BasisZ - old.BasisZ).GetLength() > 1e-9)
-                    throw new InvalidOperationException("Сместилась связь " + item.Key + ". Операция отменяется.");
+                Check(report, new ElementId(item.Key), "Проверка связи", () =>
+                {
+                    Element e = doc.GetElement(new ElementId(item.Key));
+                    Transform now = e is RevitLinkInstance ? ((RevitLinkInstance)e).GetTransform() : ((ImportInstance)e).GetTransform();
+                    Transform old = item.Value;
+                    if ((now.Origin - old.Origin).GetLength() > Tolerance ||
+                        (now.BasisX - old.BasisX).GetLength() > 1e-9 ||
+                        (now.BasisY - old.BasisY).GetLength() > 1e-9 ||
+                        (now.BasisZ - old.BasisZ).GetLength() > 1e-9)
+                        throw new InvalidOperationException("Сместилась связь " + item.Key + ". Требуется проверка.");
+
+                });
             }
         }
         internal static void VerifyOriginalElements(Document doc, RelocationPlan plan, RelocationReport report)
@@ -427,10 +513,8 @@ namespace Arv.OriginRelocator
                 string description;
                 if (!plan.OriginalDescriptions.TryGetValue(id, out description)) description = id.ToString();
                 descriptions.Add(description);
-                report.Lines.Add("УДАЛЁН ЗАЩИЩЁННЫЙ ЭЛЕМЕНТ: " + description);
+                report.AddIssue(new ElementId(id), "Сохранность элементов", "Исчез исходный элемент: " + description);
             }
-            throw new InvalidOperationException("Revit удалил защищённые элементы (" + missing.Count +
-                "); перенос отменяется.\n" + string.Join("\n", descriptions.Take(3)) + "\nПолный список — в отчёте.");
         }
 
 #if SECTION_PROBE
@@ -441,30 +525,33 @@ namespace Arv.OriginRelocator
 #endif
         private static void VerifyAll(Document doc, RelocationPlan plan, XYZ delta, RelocationReport report, bool verifyViewports = true)
         {
-            foreach (ElementState s in plan.Models) s.Verify(doc, delta);
-            foreach (ElementState s in plan.Annotations) s.Verify(doc, delta, true);
-            foreach (ViewGraphicState graphic in plan.ViewGraphics) graphic.Verify(doc, delta);
-            foreach (ViewState s in plan.Views) VerifyView((View)doc.GetElement(s.Id), s, delta);
-            foreach (KeyValuePair<int, ElementState> s in plan.MarkerStates) s.Value.Verify(doc, delta);
+            foreach (ElementState s in plan.Models) Check(report, s.Id, "Проверка модели", () => s.Verify(doc, delta));
+            foreach (ElementState s in plan.Annotations) Check(report, s.Id, "Проверка оформления", () => s.Verify(doc, delta, true));
+            foreach (ViewGraphicState graphic in plan.ViewGraphics) Check(report, graphic.State.Id, "Проверка обозначения", () => graphic.Verify(doc, delta));
+            foreach (ViewState s in plan.Views) Check(report, s.Id, "Проверка вида", () => VerifyView((View)doc.GetElement(s.Id), s, delta));
+            foreach (KeyValuePair<int, ElementState> s in plan.MarkerStates) Check(report, s.Value.Id, "Проверка фасада", () => s.Value.Verify(doc, delta));
             foreach (KeyValuePair<int, bool> pin in plan.Pins)
-                if ((verifyViewports || !plan.ViewportCenters.ContainsKey(pin.Key)) &&
-                    doc.GetElement(new ElementId(pin.Key)).Pinned != pin.Value)
-                    throw new InvalidOperationException("Не восстановлено закрепление элемента " + pin.Key);
-            VerifyStationary(doc, plan);
-            foreach (ElementState s in plan.SheetStates) s.Verify(doc, XYZ.Zero);
+                Check(report, new ElementId(pin.Key), "Проверка закрепления", () =>
+                { if ((verifyViewports || !plan.ViewportCenters.ContainsKey(pin.Key)) && doc.GetElement(new ElementId(pin.Key)).Pinned != pin.Value) throw new InvalidOperationException("Не восстановлено закрепление."); });
+            VerifyStationary(doc, plan, report);
+            foreach (ElementState s in plan.SheetStates) Check(report, s.Id, "Оформление листа", () => s.Verify(doc, XYZ.Zero));
             if (verifyViewports)
             {
-                VerifyViewportPositions(doc, plan);
-                foreach (ViewportLabelState label in plan.ViewportLabels.Values) label.Verify((Viewport)doc.GetElement(label.Id));
+                VerifySheetViewports(doc, plan, report);
+                foreach (ViewportLabelState label in plan.ViewportLabels.Values) Check(report, label.Id, "Заголовок вида на листе", () => label.Verify((Viewport)doc.GetElement(label.Id)));
             }
 
             foreach (ElementId id in plan.SectionBoxes)
             {
-                BoundingBoxXYZ old = plan.BoxesBefore[id.IntegerValue];
-                BoundingBoxXYZ now = ((View3D)doc.GetElement(id)).GetSectionBox();
-                if ((old.Transform.OfPoint(old.Min) + delta - now.Transform.OfPoint(now.Min)).GetLength() > Tolerance ||
-                    (old.Transform.OfPoint(old.Max) + delta - now.Transform.OfPoint(now.Max)).GetLength() > Tolerance)
-                    throw new InvalidOperationException("Не переместилась секущая рамка 3D-вида " + id.IntegerValue);
+                Check(report, id, "Проверка секущей рамки", () =>
+                {
+                    BoundingBoxXYZ old = plan.BoxesBefore[id.IntegerValue];
+                    BoundingBoxXYZ now = ((View3D)doc.GetElement(id)).GetSectionBox();
+                    if ((old.Transform.OfPoint(old.Min) + delta - now.Transform.OfPoint(now.Min)).GetLength() > Tolerance ||
+                        (old.Transform.OfPoint(old.Max) + delta - now.Transform.OfPoint(now.Max)).GetLength() > Tolerance)
+                        throw new InvalidOperationException("Не переместилась секущая рамка 3D-вида " + id.IntegerValue);
+
+                });
             }
             VerifyOriginalElements(doc, plan, report);
 
@@ -501,6 +588,13 @@ namespace Arv.OriginRelocator
             return vector;
         }
 
+        private static void MoveBestEffort(Document doc, ICollection<ElementId> ids, XYZ vector, string stage, RelocationReport report, View owner = null)
+        {
+            if (ids.Count == 0) return;
+            if (TryElement(doc, report, null, stage, () => Move(doc, ids, vector, stage, report, owner), false)) return;
+            foreach (var id in ids)
+                TryElement(doc, report, id, stage, () => Move(doc, new[] {id}, vector, stage, report, owner));
+        }
         private static void Move(Document doc, ICollection<ElementId> ids, XYZ vector, string stage, RelocationReport report,
             View annotationView = null, bool referenceGraphic = false)
         {
@@ -537,33 +631,47 @@ namespace Arv.OriginRelocator
                 vector.X * 304.8, vector.Y * 304.8, vector.Z * 304.8,
                 annotationView == null ? "XY" : "плоскость вида " + annotationView.Id.IntegerValue));
             try { ElementTransformUtils.MoveElements(doc, ids, vector); }
+            catch (Autodesk.Revit.Exceptions.RegenerationFailedException) { throw; }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 report.Lines.Add("Не перенесён набор (" + stage + "): " + string.Join(", ", ids.Select(x => x.IntegerValue)));
                 throw new InvalidOperationException(stage + ": " + ex.Message, ex);
             }
         }
-        private static void RunTransaction(Document doc, string name, RelocationReport report, RelocationPlan plan, Action body)
+        private static bool RunTransaction(Document doc, string name, RelocationReport report, RelocationPlan plan, Action body)
         {
+            report.CurrentStage = name;
+            var requestsBefore = new HashSet<int>(report.InvalidDimensionDeletionRequests);
             using (Transaction transaction = new Transaction(doc, name))
             {
-                if (transaction.Start() != TransactionStatus.Started) throw new InvalidOperationException("Не началась транзакция: " + name);
-                FailureHandlingOptions options = transaction.GetFailureHandlingOptions();
-                options.SetFailuresPreprocessor(new StrictFailures(report, plan));
-                options.SetClearAfterRollback(true);
-                transaction.SetFailureHandlingOptions(options);
                 try
                 {
+                    if (transaction.Start() != TransactionStatus.Started) throw new InvalidOperationException("Не началась транзакция.");
+                    var options = transaction.GetFailureHandlingOptions();
+                    options.SetFailuresPreprocessor(new StrictFailures(report, plan)); options.SetClearAfterRollback(true);
+                    transaction.SetFailureHandlingOptions(options);
                     body();
-                    if (transaction.Commit() != TransactionStatus.Committed)
-                        throw new InvalidOperationException("Revit отменил этап «" + name + "». Подробности в отчёте.");
+                    if (transaction.Commit() != TransactionStatus.Committed) throw new InvalidOperationException("Revit не сохранил этот этап. Другие подтверждённые этапы сохраняются.");
+                    report.CommittedStages.Add(name);
                     InvalidDimensionRecovery.AcceptCommittedDeletions(doc, plan, report);
                     VerifyOriginalElements(doc, plan, report);
+                    return true;
                 }
-                catch
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
                     if (transaction.GetStatus() == TransactionStatus.Started) transaction.RollBack();
+                    report.InvalidDimensionDeletionRequests.IntersectWith(requestsBefore);
                     throw;
+                }
+                catch (Exception ex)
+                {
+                    bool committed = transaction.GetStatus() == TransactionStatus.Committed;
+                    if (transaction.GetStatus() == TransactionStatus.Started) transaction.RollBack();
+                    if (!committed) report.InvalidDimensionDeletionRequests.IntersectWith(requestsBefore);
+                    else if (!report.CommittedStages.Contains(name)) report.CommittedStages.Add(name);
+                    report.AddIssue(null, name, ex.Message);
+                    return committed;
                 }
             }
         }

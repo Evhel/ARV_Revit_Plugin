@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -49,29 +50,35 @@ namespace Arv.OriginRelocator
                 if (dialog.ShowDialog() != true) return Result.Cancelled;
 
                 RelocationEngine.Execute(doc, plan, delta, report);
-                string path = report.TrySave();
-                TaskDialog.Show("ARV — перенос выполнен",
-                    "Выбранная точка совмещена с внутренним 0,0. Высоты сохранены.\n" +
-                    "Закрепление восстановлено; связи проверены.\n" +
-                    "Удалено размеров с некорректными опорами: " + report.DeletedInvalidDimensions.Count + ".\n\nОтчёт: " + path);
-                return Result.Succeeded;
+                ShowResult(report);
+                return report.KeptChanges ? Result.Succeeded : Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
             catch (Exception ex)
             {
-                report.Lines.Add("ОШИБКА: " + ex);
-                string path = report.TrySave();
-                message = ex.Message;
-                TaskDialog.Show("ARV — перенос отменён",
-                    "Перенос не завершён. Изменения операции отменены.\n\n" + ex.Message +
-                    "\n\nОтчёт: " + path);
-                return Result.Failed;
+                report.AddIssue(null, "Команда переноса", ex.Message);
+                ShowResult(report);
+                return report.KeptChanges ? Result.Succeeded : Result.Cancelled;
             }
+        }
+        private static void ShowResult(RelocationReport report)
+        {
+            string path = report.TrySave();
+            var dialog = new TaskDialog("ARV — результат переноса")
+            {
+                MainInstruction = report.KeptChanges ? (report.Issues.Count == 0 ? "Перенос выполнен" : "Перенос сохранён с замечаниями") : "Нет сохранённых изменений",
+                MainContent = "Сохранено этапов: " + report.CommittedStages.Count + ". Ошибок/замечаний: " + report.Issues.Count +
+                    ". Удалено некорректных размеров: " + report.DeletedInvalidDimensions.Count + ".\n\n" +
+                    string.Join("\n\n", report.Issues.Take(6)) + (report.Issues.Count > 6 ? "\n\nПолный список — в подробностях и отчёте." : "") + "\n\nОтчёт: " + path,
+                ExpandedContent = report.IssueList(),
+                CommonButtons = TaskDialogCommonButtons.Close
+            };
+            dialog.Show();
         }
     }
 
 #endif
-    internal sealed class RelocationReport
+    internal sealed partial class RelocationReport
     {
         public readonly System.Collections.Generic.HashSet<int> InvalidDimensionDeletionRequests = new System.Collections.Generic.HashSet<int>();
         public readonly System.Collections.Generic.HashSet<int> DeletedInvalidDimensions = new System.Collections.Generic.HashSet<int>();
@@ -97,7 +104,7 @@ namespace Arv.OriginRelocator
             Directory.CreateDirectory(folder);
             string path = Path.Combine(folder, "relocation-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") +
                 "-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".txt");
-            File.WriteAllLines(path, Lines, new UTF8Encoding(true));
+            File.WriteAllLines(path, Lines.Concat(new[] { "", "ИТОГОВЫЙ СПИСОК ОШИБОК И ЗАМЕЧАНИЙ (" + Issues.Count + ")", IssueList() }), new UTF8Encoding(true));
             return path;
         }
         public string TrySave() { try { return Save(); } catch (Exception e) { return "Не удалось записать отчёт: " + e.Message; } }

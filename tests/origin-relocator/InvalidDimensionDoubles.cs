@@ -50,7 +50,9 @@ namespace Arv.OriginRelocator
     }
     internal class RelocationReport
     {
-        public List<string> Lines=new List<string>();public HashSet<int> InvalidDimensionDeletionRequests=new HashSet<int>(),DeletedInvalidDimensions=new HashSet<int>();
+        public List<string> Lines=new List<string>();public List<string> Issues=new List<string>();public string CurrentStage="Test";
+        public void AddIssue(ElementId id,string stage,string message){Issues.Add(message);Lines.Add(message);}
+        public HashSet<int> InvalidDimensionDeletionRequests=new HashSet<int>(),DeletedInvalidDimensions=new HashSet<int>();
     }
     internal static class InvalidDimensionTests
     {
@@ -81,7 +83,7 @@ namespace Arv.OriginRelocator
             Check(report.DeletedInvalidDimensions.Count==2&&plan.Annotations.Single().Id.IntegerValue==7&&plan.Pins.Count==1&&plan.OriginalIds.Count==3,"committed dimensions pruned while protection of originals retained");
             RelocationEngine.VerifyOriginalElements(doc,plan,report);Check(true,"authorized missing dimensions pass original-element check");
             int lines=report.Lines.Count;InvalidDimensionRecovery.AcceptCommittedDeletions(doc,plan,report);Check(report.Lines.Count==lines,"committed removal reported once");
-            doc.Elements.Remove(7);bool rejected=false;try{RelocationEngine.VerifyOriginalElements(doc,plan,report);}catch(InvalidOperationException){rejected=true;}Check(rejected,"collateral deletion of any other original still aborts relocation");
+            doc.Elements.Remove(7);int issues=report.Issues.Count;RelocationEngine.VerifyOriginalElements(doc,plan,report);Check(report.Issues.Count==issues+1,"unexpected original deletion reported without aborting retained movement");
             Setup(out doc,out plan,out report);a=new FailuresAccessor{Doc=doc};a.Messages.Add(Failure(FailureSeverity.Error,1,7));Check(new StrictFailures(report,plan).PreprocessFailures(a)==FailureProcessingResult.ProceedWithRollBack&&a.DeleteCalls==0,"non-dimension failing ID not deleted");
             Setup(out doc,out plan,out report);plan.OriginalIds.Remove(4230239);a=new FailuresAccessor{Doc=doc};a.Messages.Add(Failure(FailureSeverity.Error,1,4230239));Check(new StrictFailures(report,plan).PreprocessFailures(a)==FailureProcessingResult.ProceedWithRollBack&&a.DeleteCalls==0,"excluded original-set element not deleted");
             Setup(out doc,out plan,out report);a=new FailuresAccessor{Doc=doc,Permit=false};a.Messages.Add(Failure(FailureSeverity.Error,1,4230239));Check(new StrictFailures(report,plan).PreprocessFailures(a)==FailureProcessingResult.ProceedWithRollBack&&a.DeleteCalls==0,"native deletion permission respected");

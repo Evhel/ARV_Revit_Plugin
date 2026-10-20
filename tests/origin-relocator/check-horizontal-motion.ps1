@@ -5,7 +5,7 @@ New-Item -ItemType Directory -Path $taskOutputFolder -Force | Out-Null
 $taskRoot=Join-Path (Split-Path (Split-Path -Parent $PSScriptRoot) -Parent) 'src\OriginRelocator'
 $taskEngine = Get-Content -LiteralPath (Join-Path $taskRoot 'RelocationEngine.cs') -Raw
 $taskStart = $taskEngine.IndexOf('        internal static XYZ HorizontalOnly(')
-$taskEnd = $taskEngine.IndexOf('        private static void Move(', $taskStart)
+$taskEnd = $taskEngine.IndexOf('        private static void MoveBestEffort(', $taskStart)
 if ($taskStart -lt 0 -or $taskEnd -lt 0) { throw 'Production horizontal helpers not found.' }
 $taskHelpers = $taskEngine.Substring($taskStart,$taskEnd-$taskStart)
 $taskTolerance = [regex]::Match($taskEngine, 'public const double Tolerance = ([^;]+);').Groups[1].Value

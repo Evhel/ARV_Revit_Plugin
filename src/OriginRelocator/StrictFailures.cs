@@ -21,11 +21,14 @@ namespace Arv.OriginRelocator
                 report.Lines.Add("Revit / " + failure.GetSeverity() + ": " + failure.GetDescriptionText() +
                     " / ID: " + string.Join(", ", failure.GetFailingElementIds().Select(x => x.IntegerValue)));
                 if (failure.GetSeverity() == FailureSeverity.Warning) continue;
+                var failing = failure.GetFailingElementIds();
+                if (failing.Count == 0) report.AddIssue(null, report.CurrentStage ?? "Revit", failure.GetDescriptionText());
+                else foreach (var id in failing) report.AddIssue(id, report.CurrentStage ?? "Revit", failure.GetDescriptionText());
                 if (failure.GetSeverity() == FailureSeverity.Error &&
                     failure.GetFailureDefinitionId().Equals(BuiltInFailures.DimensionFailures.DimensionReferencesInvalid)) invalid.Add(failure);
                 else otherError = true;
             }
-            // Resolve only the explicitly authorized error. All other errors still abort the operation.
+            // Resolve only the explicitly authorized error. Revit can reject this transaction; already committed stages are retained.
             if (otherError) return FailureProcessingResult.ProceedWithRollBack;
             if (invalid.Count == 0) return FailureProcessingResult.Continue;
             var ids = invalid.SelectMany(f => f.GetFailingElementIds()).GroupBy(id => id.IntegerValue).Select(g => g.First()).ToList();

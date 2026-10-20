@@ -25,6 +25,7 @@ $taskMethods=@(
     Get-TaskBlock $taskEngine 'internal static XYZ SectionMarkerTranslation('
     Get-TaskBlock $taskEngine 'internal static XYZ HorizontalPlaneMove('
     Get-TaskBlock $taskEngine 'internal static void RestoreViewports('
+    Get-TaskBlock $taskEngine 'private static void VerifySheetViewports('
     Get-TaskBlock $taskEngine 'internal static void VerifyViewportPositions('
 ) -join [Environment]::NewLine
 $taskHarness='
@@ -91,7 +92,7 @@ namespace Arv.OriginRelocator {
         public readonly Dictionary<int,bool> Pins=new Dictionary<int,bool>();
         public readonly Dictionary<int,ViewportLabelState> ViewportLabels=new Dictionary<int,ViewportLabelState>();
     }
-    internal class RelocationReport {public readonly List<string> Lines=new List<string>();}
+    internal class RelocationReport {public string SheetNumber(ElementId id){return "Test-sheet";}public readonly List<string> Lines=new List<string>();}
     internal class ElementState {
         public ElementId Id,ViewId;public XYZ[] Before;
         public static ElementState Capture(Element e,View v,bool annotation){return e.Box==null?null:new ElementState {Id=e.Id,ViewId=v.Id,Before=new XYZ[]{e.Box.Min,e.Box.Max}};}
@@ -103,6 +104,9 @@ namespace Arv.OriginRelocator {
     }
 __CLASSES__
     internal static class RelocationEngine {
+        static bool Check(RelocationReport report, ElementId id, string stage, Action action) {action();return true;}
+        static bool TryElement(Document doc, RelocationReport report, ElementId id, string stage, Action action) {action();return true;}
+
         public const double Tolerance=.1/304.8;
 __METHODS__
     }
